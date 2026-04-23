@@ -1093,6 +1093,73 @@ body {
 }
 
 .hidden { display: none !important; }
+/* ============ TODAY MULTI-WORKOUT HERO ============ */
+.today-workout-list {
+  display: flex; flex-direction: column; gap: 8px;
+  margin: 18px 0 16px;
+}
+.twi {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(255,255,255,.08);
+  border-radius: 14px; padding: 14px;
+  cursor: pointer; transition: transform .12s, background .15s;
+  border: 1px solid rgba(255,255,255,.08);
+  border-left: 3px solid var(--tc, rgba(255,255,255,.3));
+  width: 100%; text-align: left;
+  font-family: inherit; color: inherit;
+}
+.twi:active { transform: scale(.98); background: rgba(255,255,255,.14); }
+.twi-num {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.18);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 900;
+  letter-spacing: -.02em;
+}
+.twi-icon { font-size: 22px; flex-shrink: 0; line-height: 1; }
+.twi-info { flex: 1; min-width: 0; }
+.twi-name {
+  font-size: 15px; font-weight: 800; letter-spacing: -.02em;
+  color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.twi-meta {
+  font-size: 11px; font-weight: 700; opacity: .7;
+  margin-top: 3px; text-transform: uppercase; letter-spacing: .06em;
+}
+.twi-play {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 900;
+}
+.today-hint {
+  font-size: 11px; opacity: .55; text-align: center;
+  margin-top: 10px; font-weight: 600;
+  letter-spacing: .02em;
+}
+/* Sequence progress in workout header */
+.seq-progress {
+  font-size: 10px; font-weight: 800; letter-spacing: .12em;
+  color: var(--primary); text-transform: uppercase;
+  margin-top: 2px;
+}
+/* Complete overlay buttons */
+.complete-btn-next {
+  background: var(--primary); color: var(--on-primary);
+  font-weight: 900; font-size: 15px;
+  margin-bottom: 10px;
+}
+.complete-btn-back {
+  background: var(--surface-2); color: var(--text-2);
+  font-size: 14px;
+}
+
 /* ============ DAY PICKER (multi-select) ============ */
 .day-picker {
   display: grid;
@@ -1309,6 +1376,7 @@ body {
       <div class="w-title-wrap">
         <div class="w-eyebrow" id="wEyebrow">TREINO</div>
         <div class="w-title" id="wTitle">—</div>
+        <div class="seq-progress hidden" id="seqProgress"></div>
       </div>
       <button class="icon-btn" id="editWorkoutBtn" title="Editar" aria-label="Editar">✎</button>
       <button class="icon-btn" id="resetBtn" title="Resetar sessão" aria-label="Resetar">↻</button>
@@ -1526,7 +1594,8 @@ body {
       <div class="stat"><div class="stat-label">Tempo</div><div class="stat-value" id="cTime">0m</div></div>
       <div class="stat"><div class="stat-label">Volume</div><div class="stat-value" id="cVol">0</div></div>
     </div>
-    <button class="complete-btn" id="completeBtn">Voltar ao início</button>
+    <button class="complete-btn complete-btn-next hidden" id="completeNextBtn"></button>
+    <button class="complete-btn complete-btn-back" id="completeBtn">Voltar ao início</button>
   </div>
 </div>
 
@@ -2187,22 +2256,52 @@ function renderHome(){
         <button class="hero-cta" onclick="openWorkoutEditor()">+ Criar treino</button>
       </div>`;
   } else if (todays.length > 0){
-    const w = todays[0];
-    const c = colorOf(w.color);
-    const nEx = w.exercises.length;
-    const nSets = w.exercises.reduce((a,e) => a + (e.sets || 0), 0);
-    const estMin = estimateMinutes(w);
-    heroSlot.innerHTML = `
-      <div class="hero" style="--hero-start: #0E0E0E; --hero-end: ${c.hex};">
-        <div class="hero-eyebrow"><span class="dot"></span>Treino de hoje · ${escapeHtml(p.icon)} ${escapeHtml(p.name)}</div>
-        <div class="hero-title">${escapeHtml(w.name)}</div>
-        <div class="hero-sub">${nEx} ${nEx === 1 ? 'exercício' : 'exercícios'} · ${nSets} séries</div>
-        <div class="hero-meta">
-          <span>⏱ ~${estMin} min</span>
-          <span>${w.icon} ${workoutDays(w).map(d => DAYS[d]).join(', ') || 'Livre'}</span>
-        </div>
-        <button class="hero-cta" onclick="openWorkout('${w.id}')">▶  Começar treino</button>
-      </div>`;
+    _todaysWorkouts = todays;
+    const c = colorOf(todays[0].color);
+    if (todays.length === 1){
+      const w = todays[0];
+      const nEx = w.exercises.length;
+      const nSets = w.exercises.reduce((a,e) => a + (e.sets || 0), 0);
+      const estMin = estimateMinutes(w);
+      heroSlot.innerHTML = `
+        <div class="hero" style="--hero-start: #0E0E0E; --hero-end: ${c.hex};">
+          <div class="hero-eyebrow"><span class="dot"></span>Treino de hoje · ${escapeHtml(p.icon)} ${escapeHtml(p.name)}</div>
+          <div class="hero-title">${escapeHtml(w.name)}</div>
+          <div class="hero-sub">${nEx} ${nEx === 1 ? 'exercício' : 'exercícios'} · ${nSets} séries</div>
+          <div class="hero-meta">
+            <span>⏱ ~${estMin} min</span>
+            <span>${w.icon} ${workoutDays(w).map(d => DAYS[d]).join(', ') || 'Livre'}</span>
+          </div>
+          <button class="hero-cta" onclick="startTodaySequence()">▶  Começar treino</button>
+        </div>`;
+    } else {
+      const totalEx = todays.reduce((a, w) => a + w.exercises.length, 0);
+      const totalMin = todays.reduce((a, w) => a + estimateMinutes(w), 0);
+      const listHTML = todays.map((w, i) => {
+        const wc = colorOf(w.color);
+        const nEx = w.exercises.length;
+        const estMin = estimateMinutes(w);
+        return `
+          <button class="twi" onclick="openTodayWorkout(${i})" style="--tc:${wc.hex}">
+            <span class="twi-num">${i + 1}</span>
+            <span class="twi-icon">${w.icon}</span>
+            <div class="twi-info">
+              <div class="twi-name">${escapeHtml(w.name)}</div>
+              <div class="twi-meta">${nEx} ${nEx === 1 ? 'ex' : 'ex'} · ~${estMin} min</div>
+            </div>
+            <span class="twi-play">▶</span>
+          </button>`;
+      }).join('');
+      heroSlot.innerHTML = `
+        <div class="hero" style="--hero-start: #0E0E0E; --hero-end: ${c.hex};">
+          <div class="hero-eyebrow"><span class="dot"></span>${todays.length} treinos hoje · ${escapeHtml(p.icon)} ${escapeHtml(p.name)}</div>
+          <div class="hero-title">Dia<br>Pesado</div>
+          <div class="hero-sub">${totalEx} exercícios · ~${totalMin} min no total</div>
+          <div class="today-workout-list">${listHTML}</div>
+          <button class="hero-cta" onclick="startTodaySequence()">▶  Começar sequência</button>
+          <div class="today-hint">Toque num treino para fazer só ele</div>
+        </div>`;
+    }
   } else {
     const totalWorkouts = p.workouts.length;
     heroSlot.innerHTML = `
@@ -2343,10 +2442,14 @@ function renderWorkoutsList(){
 function openWorkout(id){
   const w = getWorkout(id);
   if (!w) return;
+  // Update queue index if this workout is in the queue
+  const qi = _wQueue.indexOf(id);
+  if (qi !== -1) _wQueueIdx = qi;
   state.currentWorkoutId = id;
   document.getElementById('workoutView').setAttribute('style', workoutCssVars(w));
   document.getElementById('wEyebrow').textContent = workoutDays(w).length > 0 ? `TREINO · ${workoutDays(w).map(d => DAYS[d].toUpperCase()).join(' · ')}` : 'TREINO';
   document.getElementById('wTitle').textContent = w.name;
+  _updateQueueProgress();
   renderExercises();
   showView('workoutView');
 }
@@ -2469,6 +2572,38 @@ function renderExerciseCard(w, ex, idx){
         </div>
       </div>
     </div>`;
+}
+
+/* ===================== WORKOUT QUEUE (sequência) ===================== */
+let _wQueue = [];   // IDs dos treinos do dia em ordem
+let _wQueueIdx = 0; // posição atual
+let _todaysWorkouts = []; // cache dos treinos de hoje para os handlers inline
+
+function startWorkoutSequence(ids){
+  if (!ids || ids.length === 0) return;
+  _wQueue = ids.slice();
+  _wQueueIdx = 0;
+  openWorkout(_wQueue[0]);
+}
+function startTodaySequence(){
+  startWorkoutSequence(_todaysWorkouts.map(w => w.id));
+}
+function openTodayWorkout(idx){
+  const w = _todaysWorkouts[idx];
+  if (!w) return;
+  startWorkoutSequence([w.id]);
+}
+
+function _updateQueueProgress(){
+  const el = document.getElementById('seqProgress');
+  if (!el) return;
+  if (_wQueue.length > 1){
+    el.textContent = `Treino ${_wQueueIdx + 1} de ${_wQueue.length}`;
+    el.classList.remove('hidden');
+  } else {
+    el.textContent = '';
+    el.classList.add('hidden');
+  }
 }
 
 const _collapsedExercises = new Set();
@@ -2731,12 +2866,30 @@ function maybeCompleteWorkout(){
   document.getElementById('cSets').textContent = done;
   document.getElementById('cVol').textContent = Math.round(vol) + 'kg';
   document.getElementById('cTime').textContent = estimateMinutes(w) + 'm';
+
+  // Queue: show next button if there's another workout
+  const nextIdx = _wQueueIdx + 1;
+  const nextBtn = document.getElementById('completeNextBtn');
+  if (_wQueue.length > 1 && nextIdx < _wQueue.length){
+    const nextW = getWorkout(_wQueue[nextIdx]);
+    nextBtn.textContent = `▶  Próximo: ${nextW ? nextW.name : 'Treino'}`;
+    nextBtn.classList.remove('hidden');
+  } else {
+    nextBtn.classList.add('hidden');
+  }
   document.getElementById('completeOverlay').classList.add('show');
 }
 
+document.getElementById('completeNextBtn').onclick = () => {
+  document.getElementById('completeOverlay').classList.remove('show');
+  resetWorkoutSession(state.currentWorkoutId);
+  _wQueueIdx++;
+  openWorkout(_wQueue[_wQueueIdx]);
+};
 document.getElementById('completeBtn').onclick = () => {
   document.getElementById('completeOverlay').classList.remove('show');
   resetWorkoutSession(state.currentWorkoutId);
+  _wQueue = []; _wQueueIdx = 0;
   renderExercises();
   renderHome();
   showView('homeView');
