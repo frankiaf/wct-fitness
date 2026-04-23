@@ -1084,6 +1084,46 @@ body {
 }
 
 .hidden { display: none !important; }
+/* ============ DAY PICKER (multi-select) ============ */
+.day-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.day-btn {
+  padding: 14px 4px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-2);
+  font-size: 11px; font-weight: 900;
+  letter-spacing: .06em; text-transform: uppercase;
+  cursor: pointer; text-align: center;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.day-btn.active {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: transparent;
+}
+.day-btn-livre {
+  grid-column: span 4;
+  padding: 11px;
+  border-radius: 12px;
+  background: none;
+  border: 1px dashed var(--border);
+  color: var(--text-3);
+  font-size: 12px; font-weight: 700;
+  cursor: pointer; text-align: center;
+  transition: all .15s;
+}
+.day-btn-livre.active {
+  border-style: solid;
+  border-color: var(--border);
+  color: var(--text-2);
+  background: var(--surface-2);
+}
+
 /* ============ AUTH MODAL ============ */
 .auth-overlay {
   display: none; position: fixed; inset: 0; z-index: 200;
@@ -1351,8 +1391,8 @@ body {
       <input class="field-input" id="wkName" maxlength="40" placeholder="Ex: Push, Pernas, Cardio...">
     </div>
     <div class="field">
-      <label class="field-label">Dia da semana</label>
-      <div class="segmented" id="wkDay"></div>
+      <label class="field-label">Dias da semana</label>
+      <div id="wkDay"></div>
     </div>
     <div class="field">
       <label class="field-label">Cor</label>
@@ -1961,10 +2001,19 @@ function resetWorkoutSession(wId){
 /* ===================== WORKOUT CRUD (on active profile) ===================== */
 function getWorkout(id){ return activeProfile()?.workouts.find(w => w.id === id); }
 
+// Returns array of selected day numbers (0=Dom … 6=Sáb).
+// Supports both legacy dayOfWeek (single) and new days[] (multi).
+function workoutDays(w){
+  if (Array.isArray(w.days) && w.days.length > 0) return w.days;
+  if (w.dayOfWeek !== null && w.dayOfWeek !== undefined) return [w.dayOfWeek];
+  return [];
+}
+
 function createWorkout(partial){
   const w = {
     id: uid(),
     name: partial.name || 'Novo treino',
+    days: partial.days ?? (partial.dayOfWeek != null ? [partial.dayOfWeek] : []),
     dayOfWeek: partial.dayOfWeek ?? null,
     color: partial.color || COLORS[0].id,
     icon: partial.icon || '💪',
@@ -2113,7 +2162,7 @@ function renderHome(){
 
   const dow = todayDow();
   const p = activeProfile();
-  const todays = p.workouts.filter(w => w.dayOfWeek === dow);
+  const todays = p.workouts.filter(w => workoutDays(w).includes(dow));
   const heroSlot = document.getElementById('heroSlot');
 
   if (p.workouts.length === 0){
@@ -2141,7 +2190,7 @@ function renderHome(){
         <div class="hero-sub">${nEx} ${nEx === 1 ? 'exercício' : 'exercícios'} · ${nSets} séries</div>
         <div class="hero-meta">
           <span>⏱ ~${estMin} min</span>
-          <span>${w.icon} ${DAYS[w.dayOfWeek]}</span>
+          <span>${w.icon} ${workoutDays(w).map(d => DAYS[d]).join(', ') || 'Livre'}</span>
         </div>
         <button class="hero-cta" onclick="openWorkout('${w.id}')">▶  Começar treino</button>
       </div>`;
@@ -2170,7 +2219,7 @@ function renderHome(){
     d.setDate(sunday.getDate() + i);
     const dDow = d.getDay();
     const isToday = dDow === today;
-    const hasPlan = p.workouts.some(w => w.dayOfWeek === dDow);
+    const hasPlan = p.workouts.some(w => workoutDays(w).includes(dDow));
     const el = document.createElement('button');
     el.className = 'week-day' + (isToday ? ' today' : '') + (hasPlan ? ' planned' : '');
     el.innerHTML = `
@@ -2179,15 +2228,14 @@ function renderHome(){
       <span class="week-day-dot"></span>
     `;
     el.onclick = () => {
-      const ws = p.workouts.filter(w => w.dayOfWeek === dDow);
+      const ws = p.workouts.filter(w => workoutDays(w).includes(dDow));
       if (ws.length > 0) openWorkout(ws[0].id);
-      else openWorkoutEditor(null, dDow);
     };
     weekEl.appendChild(el);
   }
 
   // Stats
-  const goal = Math.max(1, new Set(p.workouts.map(w => w.dayOfWeek).filter(d => d !== null)).size) || p.workouts.length || 1;
+  const goal = Math.max(1, new Set(p.workouts.flatMap(w => workoutDays(w))).size) || p.workouts.length || 1;
   document.getElementById('streakVal').textContent = state.streak;
   document.getElementById('weekDone').textContent = state.week.count;
   document.getElementById('weekGoal').textContent = '/' + goal;
@@ -2256,13 +2304,13 @@ function renderWorkoutsList(){
   }
   const todayDowN = todayDow();
   const sorted = [...p.workouts].sort((a,b) => {
-    const ao = a.dayOfWeek === null ? 99 : ((a.dayOfWeek + 6) % 7);
-    const bo = b.dayOfWeek === null ? 99 : ((b.dayOfWeek + 6) % 7);
+    const aDays = workoutDays(a); const ao = aDays.length === 0 ? 99 : ((aDays[0] + 6) % 7);
+    const bDays = workoutDays(b); const bo = bDays.length === 0 ? 99 : ((bDays[0] + 6) % 7);
     return ao - bo;
   });
   slot.innerHTML = `<div class="workouts">${sorted.map(w => {
     const c = colorOf(w.color);
-    const isToday = w.dayOfWeek === todayDowN;
+    const isToday = workoutDays(w).includes(todayDowN);
     const nEx = w.exercises.length;
     const nSets = w.exercises.reduce((a,e) => a + (e.sets||0), 0);
     return `
@@ -2273,7 +2321,7 @@ function renderWorkoutsList(){
         <div class="workout-body">
           <div class="workout-title">${escapeHtml(w.name)}</div>
           <div class="workout-sub">
-            ${w.dayOfWeek !== null ? `<span class="day-chip">${DAYS[w.dayOfWeek]}</span>` : '<span class="day-chip" style="--wc:var(--text-3); --wc-soft: var(--surface-2);">Livre</span>'}
+            ${workoutDays(w).length > 0 ? `<span class="day-chip">${workoutDays(w).map(d => DAYS[d]).join(', ')}</span>` : '<span class="day-chip" style="--wc:var(--text-3); --wc-soft: var(--surface-2);">Livre</span>'}
             <span>${nEx} ex · ${nSets} séries</span>
           </div>
         </div>
@@ -2288,7 +2336,7 @@ function openWorkout(id){
   if (!w) return;
   state.currentWorkoutId = id;
   document.getElementById('workoutView').setAttribute('style', workoutCssVars(w));
-  document.getElementById('wEyebrow').textContent = w.dayOfWeek !== null ? `TREINO · ${DAYS[w.dayOfWeek].toUpperCase()}` : 'TREINO';
+  document.getElementById('wEyebrow').textContent = workoutDays(w).length > 0 ? `TREINO · ${workoutDays(w).map(d => DAYS[d].toUpperCase()).join(' · ')}` : 'TREINO';
   document.getElementById('wTitle').textContent = w.name;
   renderExercises();
   showView('workoutView');
@@ -2703,25 +2751,47 @@ document.getElementById('addWorkoutLink').onclick = () => openWorkoutEditor();
 function openWorkoutEditor(id, dayOfWeek){
   const w = id ? getWorkout(id) : null;
   state.editingWorkout = w ? { ...w } : {
-    id: null, name: '', dayOfWeek: dayOfWeek !== undefined ? dayOfWeek : null,
+    id: null, name: '',
+    days: dayOfWeek !== undefined ? [dayOfWeek] : [],
+    dayOfWeek: dayOfWeek !== undefined ? dayOfWeek : null,
     color: COLORS[0].id, icon: '💪', exercises: []
   };
+  if (!Array.isArray(state.editingWorkout.days)) {
+    state.editingWorkout.days = state.editingWorkout.dayOfWeek != null ? [state.editingWorkout.dayOfWeek] : [];
+  }
   document.getElementById('wkModalTitle').textContent = w ? 'Editar treino' : 'Novo treino';
   document.getElementById('wkName').value = state.editingWorkout.name;
 
   const dayEl = document.getElementById('wkDay');
-  dayEl.innerHTML = `
-    <div class="seg ${state.editingWorkout.dayOfWeek === null ? 'active' : ''}" data-dow="">Livre</div>
-    ${[1,2,3,4,5,6,0].map(d => `<div class="seg ${state.editingWorkout.dayOfWeek === d ? 'active' : ''}" data-dow="${d}">${DAYS[d]}</div>`).join('')}
-  `;
-  dayEl.querySelectorAll('.seg').forEach(seg => {
-    seg.onclick = () => {
-      dayEl.querySelectorAll('.seg').forEach(s => s.classList.remove('active'));
-      seg.classList.add('active');
-      const v = seg.dataset.dow;
-      state.editingWorkout.dayOfWeek = v === '' ? null : +v;
+  const _renderDayPicker = () => {
+    const sel = state.editingWorkout.days;
+    dayEl.innerHTML = `
+      <div class="day-picker">
+        ${[1,2,3,4,5,6,0].map(d =>
+          `<button type="button" class="day-btn${sel.includes(d) ? ' active' : ''}" data-dow="${d}">${DAYS[d]}</button>`
+        ).join('')}
+        <button type="button" class="day-btn-livre${sel.length === 0 ? ' active' : ''}" data-dow="">
+          Sem dia fixo (Livre)
+        </button>
+      </div>
+    `;
+    dayEl.querySelectorAll('.day-btn').forEach(btn => {
+      btn.onclick = () => {
+        const d = +btn.dataset.dow;
+        const idx = state.editingWorkout.days.indexOf(d);
+        if (idx === -1) state.editingWorkout.days.push(d);
+        else state.editingWorkout.days.splice(idx, 1);
+        state.editingWorkout.dayOfWeek = state.editingWorkout.days[0] ?? null;
+        _renderDayPicker();
+      };
+    });
+    dayEl.querySelector('.day-btn-livre').onclick = () => {
+      state.editingWorkout.days = [];
+      state.editingWorkout.dayOfWeek = null;
+      _renderDayPicker();
     };
-  });
+  };
+  _renderDayPicker();
 
   const colEl = document.getElementById('wkColors');
   colEl.innerHTML = COLORS.map(c => `
@@ -2760,7 +2830,9 @@ document.getElementById('wkSave').onclick = () => {
   const name = document.getElementById('wkName').value.trim();
   if (!name){ toast('Dê um nome ao treino', 'error'); return; }
   const data = {
-    name, dayOfWeek: state.editingWorkout.dayOfWeek,
+    name,
+    days: state.editingWorkout.days || [],
+    dayOfWeek: (state.editingWorkout.days || [])[0] ?? null,
     color: state.editingWorkout.color, icon: state.editingWorkout.icon
   };
   if (state.editingWorkout.id){
