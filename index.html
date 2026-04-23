@@ -530,22 +530,31 @@ body {
 .mini-btn:active { transform: scale(.9); }
 .mini-btn.danger { color: var(--danger); }
 
-/* Instructions panel */
-.instructions-toggle {
-  width: 100%;
-  padding: 10px 14px;
+/* Instructions panel — always visible */
+.instructions-body {
+  display: block;
+  padding: 14px;
   background: var(--surface-2);
   border-top: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
-  font-size: 12px; font-weight: 700; color: var(--text-2);
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  transition: background .15s;
+  animation: fadeIn .2s;
 }
-.instructions-toggle:active { background: var(--surface-3); }
-.instructions-toggle .chev { font-size: 10px; transition: transform .2s; }
-.ex-card.open-info .instructions-toggle .chev { transform: rotate(180deg); }
-.instructions-body { display: none; padding: 14px; background: var(--surface-2); border-bottom: 1px solid var(--border-subtle); }
-.ex-card.open-info .instructions-body { display: block; animation: fadeIn .2s; }
+.ex-card.sets-collapsed .instructions-body { display: none; }
+.ex-card.sets-collapsed .ex-sets { display: none; }
+
+/* Collapse toggle button */
+.ex-collapse-btn {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-2);
+  font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s; flex-shrink: 0;
+}
+.ex-collapse-btn:active { background: var(--surface-3); }
+.ex-card.sets-collapsed .ex-collapse-btn { background: var(--primary-soft); color: var(--primary); border-color: transparent; }
 .instr-label {
   font-size: 10px; font-weight: 700; text-transform: uppercase;
   color: var(--text-3); letter-spacing: .08em;
@@ -2419,9 +2428,6 @@ function renderExerciseCard(w, ex, idx){
     : `${n} × ${ex.reps || '—'} reps${ex.trackWeight ? (ex.weight ? ` · ${ex.weight}kg` : '') : ' · sem carga'}`;
 
   const instrBlock = hasInfo ? `
-    <button class="instructions-toggle" onclick="toggleExerciseInfo(this)">
-      <span>📖 Ver instruções</span><span class="chev">▼</span>
-    </button>
     <div class="instructions-body">
       ${ex.description ? `<div class="instr-label">Descrição</div><div class="instr-desc">${escapeHtml(ex.description)}</div>` : ''}
       ${ex.media && ex.media.length ? `
@@ -2439,8 +2445,9 @@ function renderExerciseCard(w, ex, idx){
         </div>` : ''}
     </div>` : '';
 
+  const isCollapsed = _collapsedExercises.has(ex.id);
   return `
-    <div class="ex-card ${doneAll?'done':''}">
+    <div class="ex-card ${doneAll?'done':''} ${isCollapsed?'sets-collapsed':''}">
       <div class="ex-head">
         <div class="ex-num"><span>${idx+1}</span></div>
         <div class="ex-info">
@@ -2448,6 +2455,7 @@ function renderExerciseCard(w, ex, idx){
           <div class="ex-meta">${badge}${infoBadge}<span>${meta}</span></div>
         </div>
         <div class="ex-actions">
+          <button class="ex-collapse-btn" onclick="toggleExerciseSets('${ex.id}')" aria-label="${isCollapsed?'Expandir':'Recolher'}">${isCollapsed?'▼':'▲'}</button>
           <button class="mini-btn" onclick="openExerciseEditor('${w.id}','${ex.id}')" aria-label="Editar">✎</button>
         </div>
       </div>
@@ -2463,8 +2471,11 @@ function renderExerciseCard(w, ex, idx){
     </div>`;
 }
 
-function toggleExerciseInfo(btn){
-  btn.closest('.ex-card').classList.toggle('open-info');
+const _collapsedExercises = new Set();
+function toggleExerciseSets(exId){
+  if (_collapsedExercises.has(exId)) _collapsedExercises.delete(exId);
+  else _collapsedExercises.add(exId);
+  renderExercises();
 }
 
 function allSetsDone(wId, ex, n){
