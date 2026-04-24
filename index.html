@@ -271,6 +271,37 @@ body {
 .week-day.done .week-day-dot { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
 .week-day.planned .week-day-dot { background: var(--text-2); }
 .week-day.today .week-day-dot { background: var(--invert-text); box-shadow: none; }
+.week-day.selected { border-color: var(--primary); color: var(--primary); }
+
+/* Shop */
+.shop-balance {
+  font-size: 13px; font-weight: 700; color: var(--text-2);
+  margin-bottom: 16px; text-transform: uppercase; letter-spacing: .08em;
+}
+.shop-balance strong { color: var(--primary); font-size: 16px; }
+.shop-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--border-subtle);
+}
+.shop-item-info { flex: 1; min-width: 0; }
+.shop-item-name { font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: -.02em; }
+.shop-item-cost { font-size: 11px; color: var(--text-2); font-weight: 600; margin-top: 2px; }
+.shop-item-actions { display: flex; gap: 8px; align-items: center; }
+.shop-redeem-btn {
+  padding: 7px 14px; border-radius: 999px;
+  background: var(--primary); color: var(--on-primary);
+  font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em;
+  transition: transform .15s;
+}
+.shop-redeem-btn:active { transform: scale(.95); }
+.shop-redeem-btn:disabled { opacity: .35; cursor: not-allowed; }
+.shop-delete-btn { font-size: 18px; color: var(--text-3); line-height: 1; padding: 4px; }
+.shop-delete-btn:hover { color: var(--danger); }
+.shop-empty { font-size: 13px; color: var(--text-3); padding: 16px 0; text-align: center; }
+.shop-add-form { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-subtle); }
+.shop-add-title { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .1em; color: var(--text-2); margin-bottom: 10px; }
+.shop-add-row { display: flex; gap: 8px; margin-top: 8px; }
+.shop-add-row .field-input { flex: 1; }
 
 /* Stats */
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 6px; }
@@ -282,7 +313,14 @@ body {
   display: flex; flex-direction: column; gap: 6px;
   position: relative;
   overflow: hidden;
+  text-align: left;
+  width: 100%;
 }
+button.stat:active { transform: scale(.97); }
+.shop-stat { justify-content: space-between; }
+.shop-stat-body { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.shop-stat-text { font-size: 11px; font-weight: 700; color: var(--text-2); line-height: 1.4; flex: 1; }
+.shop-stat-img { width: 38px; height: 38px; object-fit: contain; flex-shrink: 0; }
 .stat-label {
   font-size: 9px; color: var(--text-3); font-weight: 900;
   text-transform: uppercase; letter-spacing: .14em;
@@ -340,13 +378,6 @@ body {
   text-align: left; width: 100%;
 }
 .workout-card:active { transform: scale(.98); border-color: var(--border); }
-.workout-icon {
-  width: 46px; height: 46px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px; flex-shrink: 0;
-  background: var(--wbg, var(--surface-2)); color: var(--wc, var(--text));
-  border: 1px solid var(--border-subtle);
-}
 .workout-body { flex: 1; min-width: 0; }
 .workout-title {
   font-size: 16px; font-weight: 900; margin-bottom: 3px;
@@ -380,7 +411,6 @@ body {
   padding: 34px 20px;
   text-align: center;
 }
-.empty-state .em-emoji { font-size: 38px; margin-bottom: 10px; }
 .empty-state .em-title {
   font-size: 18px; font-weight: 900; margin-bottom: 6px;
   text-transform: uppercase; letter-spacing: -.03em;
@@ -1055,13 +1085,6 @@ body {
   text-align: center;
   max-width: 360px; width: 100%;
 }
-.complete-emoji {
-  width: 70px; height: 70px; border-radius: 50%;
-  background: var(--primary);
-  color: var(--on-primary);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 34px; margin: 0 auto 16px;
-}
 .complete-title {
   font-size: 28px; font-weight: 900; margin-bottom: 6px;
   letter-spacing: -.04em; text-transform: uppercase;
@@ -1330,23 +1353,24 @@ body {
     <div class="week" id="weekBar"></div>
 
     <!-- Stats -->
-    <div class="section-title">Progresso</div>
+    <div class="section-title">Conquistas</div>
     <div class="stats">
-      <div class="stat" style="--stat-bg: var(--success-soft); --stat-c: var(--success);">
-        <div class="stat-icon">🔥</div>
-        <div class="stat-label">Streak</div>
-        <div class="stat-value"><span id="streakVal">0</span><small>dias</small></div>
-      </div>
       <div class="stat" style="--stat-bg: var(--primary-soft); --stat-c: var(--primary);">
-        <div class="stat-icon">✓</div>
-        <div class="stat-label">Semana</div>
-        <div class="stat-value"><span id="weekDone">0</span><small id="weekGoal">/0</small></div>
+        <div class="stat-label">Moedas</div>
+        <div class="stat-value"><span id="coinsVal">0</span><img src="coin.png" style="width:18px;height:18px;vertical-align:middle;margin-left:4px;"></div>
       </div>
-      <div class="stat" style="--stat-bg: var(--success-soft); --stat-c: var(--success);">
-        <div class="stat-icon">📊</div>
-        <div class="stat-label">Total</div>
-        <div class="stat-value"><span id="totalDone">0</span><small>treinos</small></div>
+      <div class="stat">
+        <div class="stat-label">Rank</div>
+        <div class="stat-value" id="rankName" style="font-size:18px;">Novato</div>
+        <div style="font-size:11px; color:var(--text-3); font-weight:700;" id="rankPts">0 pts</div>
       </div>
+      <button class="stat shop-stat" onclick="openShop()">
+        <div class="stat-label">Loja</div>
+        <div class="shop-stat-body">
+          <div class="shop-stat-text">Trocar moedas por recompensas</div>
+          <img src="shop.webp" class="shop-stat-img">
+        </div>
+      </button>
     </div>
 
     <div class="ring-card">
@@ -1405,6 +1429,27 @@ body {
   </div>
 </div>
 
+<!-- Shop modal -->
+<div class="modal-bg" id="shopModalBg">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Loja</div>
+    <div class="shop-balance">Saldo: <strong id="shopCoinsDisplay">0</strong> moedas</div>
+    <div id="shopItemsList"></div>
+    <div class="shop-add-form">
+      <div class="shop-add-title">Adicionar produto</div>
+      <input class="field-input" id="shopItemName" placeholder="Nome (ex: Hamburguer)" maxlength="40">
+      <div class="shop-add-row">
+        <input class="field-input" id="shopItemCost" type="number" min="1" placeholder="Custo em moedas">
+        <button class="btn-primary" id="shopAddBtn">Adicionar</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="shopClose">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Countdown fullscreen -->
 <div class="countdown-overlay" id="countdownOv">
   <div class="countdown-label">Cronômetro</div>
@@ -1445,10 +1490,6 @@ body {
       <label class="field-label">Nome</label>
       <input class="field-input" id="profName" maxlength="30" placeholder="Ex: Casa, Academia Z...">
     </div>
-    <div class="field">
-      <label class="field-label">Ícone</label>
-      <div class="icon-picker" id="profIcons"></div>
-    </div>
     <div class="modal-actions">
       <button class="btn-ghost" id="profEditCancel">Cancelar</button>
       <button class="btn-primary" id="profEditSave">Salvar</button>
@@ -1474,10 +1515,6 @@ body {
     <div class="field">
       <label class="field-label">Cor</label>
       <div class="color-picker" id="wkColors"></div>
-    </div>
-    <div class="field">
-      <label class="field-label">Ícone</label>
-      <div class="icon-picker" id="wkIcons"></div>
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" id="wkCancel">Cancelar</button>
@@ -1586,8 +1623,7 @@ body {
 <!-- Complete -->
 <div class="complete-overlay" id="completeOverlay">
   <div class="complete-card">
-    <div class="complete-emoji">🏆</div>
-    <div class="complete-title">Treino concluído!</div>
+    <div class="complete-title">Treino concluído</div>
     <div class="complete-sub" id="completeSub">Mandou bem. Recuperação agora é parte do plano.</div>
     <div class="complete-stats">
       <div class="stat"><div class="stat-label">Séries</div><div class="stat-value" id="cSets">0</div></div>
@@ -1612,7 +1648,7 @@ let _sbUser = null;
 async function sbSync() {
   if (!_sbUser) return;
   try {
-    await _sb.from('wct_user_data').upsert({
+    const { error } = await _sb.from('wct_user_data').upsert({
       user_id: _sbUser.id,
       profiles: state.profiles,
       active_profile_id: state.activeProfileId,
@@ -1621,9 +1657,16 @@ async function sbSync() {
       streak_date: state.streakDate,
       week: state.week,
       session: state.session,
+      coins: state.coins,
+      shop: state.shop,
+      purchases: state.purchases,
+      rank_points: state.rankPoints,
+      last_decay_check: state.lastDecayCheck,
+      last_coin_date: state.lastCoinDate,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' });
-  } catch(e) { console.warn('[SB] sync:', e); }
+    if (error) console.error('[SB] sync error:', error.message, error);
+  } catch(e) { console.warn('[SB] sync exception:', e); }
 }
 
 async function sbLoad() {
@@ -1639,6 +1682,12 @@ async function sbLoad() {
     if (data.streak_date) state.streakDate = data.streak_date;
     if (data.week) state.week = data.week;
     if (data.session) state.session = data.session;
+    if (data.coins != null) state.coins = data.coins;
+    if (data.shop) state.shop = data.shop;
+    if (data.purchases) state.purchases = data.purchases;
+    if (data.rank_points != null) state.rankPoints = data.rank_points;
+    if (data.last_decay_check) state.lastDecayCheck = data.last_decay_check;
+    if (data.last_coin_date) state.lastCoinDate = data.last_coin_date;
     saveRaw();
     await preloadAllMedia();
     renderHome();
@@ -1726,6 +1775,12 @@ const LS = {
   total:      'wct_total_v2',
   week:       'wct_week_v2',
   theme:      'wct_theme',
+  coins:      'wct_coins_v1',
+  shop:       'wct_shop_v1',
+  purchases:  'wct_purchases_v1',
+  rankPoints: 'wct_rank_points_v1',
+  lastDecayCheck: 'wct_last_decay_v1',
+  lastCoinDate: 'wct_last_coin_v1',
   // legacy
   legacyWorkouts: 'wct_workouts_v2'
 };
@@ -1847,6 +1902,12 @@ function saveRaw(){
     localStorage.setItem(LS.streak, JSON.stringify(state.streak));
     localStorage.setItem(LS.streakDate, JSON.stringify(state.streakDate));
     localStorage.setItem(LS.week, JSON.stringify(state.week));
+    localStorage.setItem(LS.coins, JSON.stringify(state.coins));
+    localStorage.setItem(LS.shop, JSON.stringify(state.shop));
+    localStorage.setItem(LS.purchases, JSON.stringify(state.purchases));
+    localStorage.setItem(LS.rankPoints, JSON.stringify(state.rankPoints));
+    localStorage.setItem(LS.lastDecayCheck, JSON.stringify(state.lastDecayCheck));
+    localStorage.setItem(LS.lastCoinDate, JSON.stringify(state.lastCoinDate));
   } catch(e){
     if (e.name === 'QuotaExceededError'){
       toast('Armazenamento cheio — remova algumas imagens.', 'error');
@@ -1867,6 +1928,12 @@ const state = {
   streak: +load(LS.streak, 0),
   streakDate: load(LS.streakDate, null),
   week: load(LS.week, { weekStartISO: null, count: 0 }),
+  coins: +load(LS.coins, 0),
+  shop: load(LS.shop, []),
+  purchases: load(LS.purchases, []),
+  rankPoints: +load(LS.rankPoints, 0),
+  lastDecayCheck: load(LS.lastDecayCheck, null),
+  lastCoinDate: load(LS.lastCoinDate, null),
   theme: localStorage.getItem(LS.theme) || 'dark',
   currentWorkoutId: null,
   rest: null,
@@ -2228,6 +2295,91 @@ function showView(id){
   document.getElementById('fab').classList.toggle('hidden', id !== 'workoutView');
 }
 
+/* ===================== RENDER HERO FOR DAY ===================== */
+function renderHeroForDay(dow){
+  const p = activeProfile();
+  const workouts = p.workouts.filter(w => workoutDays(w).includes(dow));
+  const heroSlot = document.getElementById('heroSlot');
+  const isToday = dow === todayDow();
+  const dayLabel = isToday ? 'hoje' : DAYS[dow];
+
+  // highlight selected day in week bar
+  document.querySelectorAll('.week-day').forEach(el => el.classList.remove('selected'));
+  const dayBtns = document.querySelectorAll('.week-day');
+  dayBtns.forEach(el => { if (Number(el.dataset.dow) === dow) el.classList.add('selected'); });
+
+  if (p.workouts.length === 0){
+    heroSlot.innerHTML = `
+      <div class="hero hero-empty">
+        <div class="hero-eyebrow"><span class="dot"></span>Perfil "${escapeHtml(p.name)}" sem treinos</div>
+        <div class="hero-title">Monte seu plano</div>
+        <div class="hero-sub">Crie exercícios com séries, repetições ou tempo — 100% personalizável.</div>
+        <div class="hero-meta">
+          <span>Fotos de referência</span>
+          <span>⏱ Timer automático</span>
+        </div>
+        <button class="hero-cta" onclick="openWorkoutEditor()">+ Criar treino</button>
+      </div>`;
+  } else if (workouts.length > 0){
+    _todaysWorkouts = workouts;
+    const c = colorOf(workouts[0].color);
+    if (workouts.length === 1){
+      const w = workouts[0];
+      const nEx = w.exercises.length;
+      const nSets = w.exercises.reduce((a,e) => a + (e.sets || 0), 0);
+      const estMin = estimateMinutes(w);
+      heroSlot.innerHTML = `
+        <div class="hero" style="--hero-start: #0E0E0E; --hero-end: ${c.hex};">
+          <div class="hero-eyebrow"><span class="dot"></span>Treino de ${dayLabel} · ${escapeHtml(p.name)}</div>
+          <div class="hero-title">${escapeHtml(w.name)}</div>
+          <div class="hero-sub">${nEx} ${nEx === 1 ? 'exercício' : 'exercícios'} · ${nSets} séries</div>
+          <div class="hero-meta">
+            <span>⏱ ~${estMin} min</span>
+            <span>${workoutDays(w).map(d => DAYS[d]).join(', ') || 'Livre'}</span>
+          </div>
+          <button class="hero-cta" onclick="startTodaySequence()">▶  Começar treino</button>
+        </div>`;
+    } else {
+      const totalEx = workouts.reduce((a, w) => a + w.exercises.length, 0);
+      const totalMin = workouts.reduce((a, w) => a + estimateMinutes(w), 0);
+      const listHTML = workouts.map((w, i) => {
+        const wc = colorOf(w.color);
+        const nEx = w.exercises.length;
+        const estMin = estimateMinutes(w);
+        return `
+          <button class="twi" onclick="openTodayWorkout(${i})" style="--tc:${wc.hex}">
+            <span class="twi-num">${i + 1}</span>
+            <div class="twi-info">
+              <div class="twi-name">${escapeHtml(w.name)}</div>
+              <div class="twi-meta">${nEx} ex · ~${estMin} min</div>
+            </div>
+            <span class="twi-play">▶</span>
+          </button>`;
+      }).join('');
+      heroSlot.innerHTML = `
+        <div class="hero" style="--hero-start: #0E0E0E; --hero-end: ${c.hex};">
+          <div class="hero-eyebrow"><span class="dot"></span>${workouts.length} treinos ${dayLabel} · ${escapeHtml(p.name)}</div>
+          <div class="hero-title">Dia<br>Pesado</div>
+          <div class="hero-sub">${totalEx} exercícios · ~${totalMin} min no total</div>
+          <div class="today-workout-list">${listHTML}</div>
+          <button class="hero-cta" onclick="startTodaySequence()">▶  Começar sequência</button>
+          <div class="today-hint">Toque num treino para fazer só ele</div>
+        </div>`;
+    }
+  } else {
+    heroSlot.innerHTML = `
+      <div class="hero hero-empty">
+        <div class="hero-eyebrow"><span class="dot"></span>Sem treino ${dayLabel} · ${escapeHtml(p.name)}</div>
+        <div class="hero-title">Dia de descanso</div>
+        <div class="hero-sub">${p.workouts.length} ${p.workouts.length===1?'treino cadastrado':'treinos cadastrados'} neste perfil.</div>
+        <div class="hero-meta">
+          <span>Treino livre também é válido</span>
+        </div>
+        <button class="hero-cta" onclick="openWorkoutEditor(null, ${dow})">+ Criar treino</button>
+      </div>`;
+  }
+}
+
 /* ===================== RENDER HOME ===================== */
 function renderHome(){
   const now = new Date();
@@ -2239,120 +2391,42 @@ function renderHome(){
   renderProfilePills();
 
   const dow = todayDow();
-  const p = activeProfile();
-  const todays = p.workouts.filter(w => workoutDays(w).includes(dow));
-  const heroSlot = document.getElementById('heroSlot');
-
-  if (p.workouts.length === 0){
-    heroSlot.innerHTML = `
-      <div class="hero hero-empty">
-        <div class="hero-eyebrow"><span class="dot"></span>Perfil "${escapeHtml(p.name)}" sem treinos</div>
-        <div class="hero-title">Monte seu plano</div>
-        <div class="hero-sub">Crie exercícios com séries, repetições ou tempo — 100% personalizável.</div>
-        <div class="hero-meta">
-          <span>📷 Fotos de referência</span>
-          <span>⏱ Timer automático</span>
-        </div>
-        <button class="hero-cta" onclick="openWorkoutEditor()">+ Criar treino</button>
-      </div>`;
-  } else if (todays.length > 0){
-    _todaysWorkouts = todays;
-    const c = colorOf(todays[0].color);
-    if (todays.length === 1){
-      const w = todays[0];
-      const nEx = w.exercises.length;
-      const nSets = w.exercises.reduce((a,e) => a + (e.sets || 0), 0);
-      const estMin = estimateMinutes(w);
-      heroSlot.innerHTML = `
-        <div class="hero" style="--hero-start: #0E0E0E; --hero-end: ${c.hex};">
-          <div class="hero-eyebrow"><span class="dot"></span>Treino de hoje · ${escapeHtml(p.icon)} ${escapeHtml(p.name)}</div>
-          <div class="hero-title">${escapeHtml(w.name)}</div>
-          <div class="hero-sub">${nEx} ${nEx === 1 ? 'exercício' : 'exercícios'} · ${nSets} séries</div>
-          <div class="hero-meta">
-            <span>⏱ ~${estMin} min</span>
-            <span>${w.icon} ${workoutDays(w).map(d => DAYS[d]).join(', ') || 'Livre'}</span>
-          </div>
-          <button class="hero-cta" onclick="startTodaySequence()">▶  Começar treino</button>
-        </div>`;
-    } else {
-      const totalEx = todays.reduce((a, w) => a + w.exercises.length, 0);
-      const totalMin = todays.reduce((a, w) => a + estimateMinutes(w), 0);
-      const listHTML = todays.map((w, i) => {
-        const wc = colorOf(w.color);
-        const nEx = w.exercises.length;
-        const estMin = estimateMinutes(w);
-        return `
-          <button class="twi" onclick="openTodayWorkout(${i})" style="--tc:${wc.hex}">
-            <span class="twi-num">${i + 1}</span>
-            <span class="twi-icon">${w.icon}</span>
-            <div class="twi-info">
-              <div class="twi-name">${escapeHtml(w.name)}</div>
-              <div class="twi-meta">${nEx} ${nEx === 1 ? 'ex' : 'ex'} · ~${estMin} min</div>
-            </div>
-            <span class="twi-play">▶</span>
-          </button>`;
-      }).join('');
-      heroSlot.innerHTML = `
-        <div class="hero" style="--hero-start: #0E0E0E; --hero-end: ${c.hex};">
-          <div class="hero-eyebrow"><span class="dot"></span>${todays.length} treinos hoje · ${escapeHtml(p.icon)} ${escapeHtml(p.name)}</div>
-          <div class="hero-title">Dia<br>Pesado</div>
-          <div class="hero-sub">${totalEx} exercícios · ~${totalMin} min no total</div>
-          <div class="today-workout-list">${listHTML}</div>
-          <button class="hero-cta" onclick="startTodaySequence()">▶  Começar sequência</button>
-          <div class="today-hint">Toque num treino para fazer só ele</div>
-        </div>`;
-    }
-  } else {
-    const totalWorkouts = p.workouts.length;
-    heroSlot.innerHTML = `
-      <div class="hero hero-empty">
-        <div class="hero-eyebrow"><span class="dot"></span>Sem treino para hoje · ${escapeHtml(p.icon)} ${escapeHtml(p.name)}</div>
-        <div class="hero-title">Dia de descanso 🛌</div>
-        <div class="hero-sub">${totalWorkouts} ${totalWorkouts===1?'treino cadastrado':'treinos cadastrados'} neste perfil.</div>
-        <div class="hero-meta">
-          <span>💪 Treino livre também é válido</span>
-        </div>
-        <button class="hero-cta" onclick="openWorkoutEditor(null, ${dow})">+ Criar treino de hoje</button>
-      </div>`;
-  }
 
   // Week bar
   const weekEl = document.getElementById('weekBar');
   weekEl.innerHTML = '';
-  const today = dow;
+  const p = activeProfile();
   const sunday = new Date(now);
   sunday.setDate(sunday.getDate() - (sunday.getDay() === 0 ? 6 : sunday.getDay() - 1));
   for (let i = 0; i < 7; i++){
     const d = new Date(sunday);
     d.setDate(sunday.getDate() + i);
     const dDow = d.getDay();
-    const isToday = dDow === today;
+    const isToday = dDow === dow;
     const hasPlan = p.workouts.some(w => workoutDays(w).includes(dDow));
     const el = document.createElement('button');
+    el.dataset.dow = dDow;
     el.className = 'week-day' + (isToday ? ' today' : '') + (hasPlan ? ' planned' : '');
     el.innerHTML = `
       <span class="week-day-letter">${DAYS_LETTER[dDow]}</span>
       <span class="week-day-num">${d.getDate()}</span>
       <span class="week-day-dot"></span>
     `;
-    el.onclick = () => {
-      const ws = p.workouts.filter(w => workoutDays(w).includes(dDow));
-      if (ws.length > 0) openWorkout(ws[0].id);
-    };
+    el.onclick = () => renderHeroForDay(dDow);
     weekEl.appendChild(el);
   }
 
+  renderHeroForDay(dow);
+
   // Stats
   const goal = Math.max(1, new Set(p.workouts.flatMap(w => workoutDays(w))).size) || p.workouts.length || 1;
-  document.getElementById('streakVal').textContent = state.streak;
-  document.getElementById('weekDone').textContent = state.week.count;
-  document.getElementById('weekGoal').textContent = '/' + goal;
-  document.getElementById('totalDone').textContent = state.total;
+  document.getElementById('coinsVal').textContent = state.coins;
+  renderRankCard();
   const pct = Math.min(100, Math.round(state.week.count / goal * 100));
   document.getElementById('weekRing').style.setProperty('--pct', pct);
   document.getElementById('weekPct').textContent = pct;
   if (state.week.count >= goal && goal > 0){
-    document.getElementById('ringTitle').textContent = 'Meta da semana concluída! 🎉';
+    document.getElementById('ringTitle').textContent = 'Meta da semana concluída';
     document.getElementById('ringSub').textContent  = 'Treinos extras são bônus.';
   } else {
     document.getElementById('ringTitle').textContent = 'Sua semana';
@@ -2369,7 +2443,7 @@ function renderProfilePills(){
   const activeId = state.activeProfileId;
   el.innerHTML = state.profiles.map(p => `
     <button class="profile-pill ${p.id === activeId ? 'active' : ''}" data-pid="${p.id}">
-      <span class="pi">${p.icon}</span><span>${escapeHtml(p.name)}</span>
+      <span>${escapeHtml(p.name)}</span>
     </button>
   `).join('') + `
     <button class="profile-pill add" id="profManageBtn">⚙ Gerenciar</button>
@@ -2403,7 +2477,6 @@ function renderWorkoutsList(){
   if (p.workouts.length === 0){
     slot.innerHTML = `
       <div class="empty-state">
-        <div class="em-emoji">📋</div>
         <div class="em-title">Nenhum treino em "${escapeHtml(p.name)}"</div>
         <div class="em-sub">Crie treinos personalizados e atribua a cada dia da semana.</div>
         <button class="btn-primary" onclick="openWorkoutEditor()">+ Criar primeiro treino</button>
@@ -2425,7 +2498,6 @@ function renderWorkoutsList(){
       <button class="workout-card ${isToday?'today-card':''}"
         style="--wc:${c.hex}; --wc-soft: color-mix(in oklab, ${c.hex} 16%, transparent); --wbg: color-mix(in oklab, ${c.hex} 16%, transparent);"
         onclick="openWorkout('${w.id}')">
-        <div class="workout-icon">${w.icon}</div>
         <div class="workout-body">
           <div class="workout-title">${escapeHtml(w.name)}</div>
           <div class="workout-sub">
@@ -2461,7 +2533,6 @@ function renderExercises(){
   if (w.exercises.length === 0){
     list.innerHTML = `
       <div class="empty-state" style="margin-top:20px;">
-        <div class="em-emoji">🏋️</div>
         <div class="em-title">Nenhum exercício ainda</div>
         <div class="em-sub">Adicione exercícios para começar este treino.</div>
         <button class="btn-primary" onclick="openExerciseEditor('${w.id}')">+ Adicionar exercício</button>
@@ -2525,7 +2596,7 @@ function renderExerciseCard(w, ex, idx){
   }
 
   const badge = isTime ? `<span class="ex-badge time">⏱ Tempo</span>` : `<span class="ex-badge">Reps</span>`;
-  const infoBadge = hasInfo ? `<span class="ex-badge has-info">📖 Instruções</span>` : '';
+  const infoBadge = '';
   const meta = isTime
     ? `${n} × ${fmtTime(ex.duration)}`
     : `${n} × ${ex.reps || '—'} reps${ex.trackWeight ? (ex.weight ? ` · ${ex.weight}kg` : '') : ' · sem carga'}`;
@@ -2573,6 +2644,93 @@ function renderExerciseCard(w, ex, idx){
       </div>
     </div>`;
 }
+
+/* ===================== RANK ===================== */
+function getRank(points){
+  if (points >= 500) return { name: 'Lenda',    color: '#F59E0B' };
+  if (points >= 300) return { name: 'Elite',    color: '#8B5CF6' };
+  if (points >= 150) return { name: 'Veterano', color: '#3B82F6' };
+  if (points >= 50)  return { name: 'Atleta',   color: '#10B981' };
+  if (points >= 0)   return { name: 'Novato',   color: '#64748B' };
+  return               { name: 'Inativo',  color: '#EF4444' };
+}
+function applyRankDecay(){
+  const today = new Date().toISOString().slice(0,10);
+  if (!state.lastDecayCheck){ state.lastDecayCheck = today; save(); return; }
+  const daysSinceCheck    = Math.round((new Date(today) - new Date(state.lastDecayCheck)) / 86400000);
+  if (daysSinceCheck <= 0) return;
+  const lastTrained       = state.streakDate || today;
+  const daysSinceTraining = Math.round((new Date(today) - new Date(lastTrained)) / 86400000);
+  const decayDays         = Math.max(0, Math.min(daysSinceCheck, daysSinceTraining - 1));
+  if (decayDays > 0) state.rankPoints -= decayDays * 5;
+  state.lastDecayCheck = today;
+  save();
+}
+function renderRankCard(){
+  const rank = getRank(state.rankPoints);
+  const el = document.getElementById('rankName');
+  const pts = document.getElementById('rankPts');
+  if (el) el.textContent = rank.name;
+  if (pts) pts.textContent = state.rankPoints + ' pts';
+  if (el) el.style.color = rank.color;
+}
+
+/* ===================== SHOP ===================== */
+function openShop(){
+  renderShop();
+  document.getElementById('shopModalBg').classList.add('show');
+}
+function closeShop(){
+  document.getElementById('shopModalBg').classList.remove('show');
+}
+function renderShop(){
+  document.getElementById('shopCoinsDisplay').textContent = state.coins;
+  const list = document.getElementById('shopItemsList');
+  if (state.shop.length === 0){
+    list.innerHTML = '<div class="shop-empty">Nenhum produto cadastrado ainda.</div>';
+  } else {
+    list.innerHTML = state.shop.map(item => `
+      <div class="shop-item" data-id="${item.id}">
+        <div class="shop-item-info">
+          <div class="shop-item-name">${escapeHtml(item.name)}</div>
+          <div class="shop-item-cost">${item.cost} moeda${item.cost !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="shop-item-actions">
+          <button class="shop-redeem-btn" onclick="redeemItem('${item.id}')" ${state.coins < item.cost ? 'disabled' : ''}>Resgatar</button>
+          <button class="shop-delete-btn" onclick="deleteShopItem('${item.id}')" title="Remover">×</button>
+        </div>
+      </div>`).join('');
+  }
+}
+function redeemItem(id){
+  const item = state.shop.find(i => i.id === id);
+  if (!item || state.coins < item.cost) return;
+  state.coins -= item.cost;
+  state.purchases.push({ id: uid(), itemId: id, itemName: item.name, cost: item.cost, date: new Date().toISOString() });
+  save();
+  renderShop();
+  document.getElementById('coinsVal').textContent = state.coins;
+  toast(`"${item.name}" resgatado!`);
+}
+function deleteShopItem(id){
+  state.shop = state.shop.filter(i => i.id !== id);
+  save();
+  renderShop();
+}
+function addShopItem(){
+  const name = document.getElementById('shopItemName').value.trim();
+  const cost = parseInt(document.getElementById('shopItemCost').value, 10);
+  if (!name){ toast('Digite o nome do produto', 'error'); return; }
+  if (!cost || cost < 1){ toast('Custo mínimo é 1 moeda', 'error'); return; }
+  state.shop.push({ id: uid(), name, cost });
+  save();
+  document.getElementById('shopItemName').value = '';
+  document.getElementById('shopItemCost').value = '';
+  renderShop();
+}
+document.getElementById('shopAddBtn').onclick = addShopItem;
+document.getElementById('shopClose').onclick = closeShop;
+document.getElementById('shopModalBg').addEventListener('click', e => { if (e.target === e.currentTarget) closeShop(); });
 
 /* ===================== WORKOUT QUEUE (sequência) ===================== */
 let _wQueue = [];   // IDs dos treinos do dia em ordem
@@ -2861,6 +3019,23 @@ function maybeCompleteWorkout(){
   checkWeekReset();
   state.week.count += 1;
   state.total += 1;
+  state.lastDecayCheck = todayISO;
+
+  // Moeda e rank só quando TODOS os treinos do dia estiverem concluídos
+  const todayWorkouts = activeProfile().workouts.filter(tw => workoutDays(tw).includes(todayDow()));
+  const allDone = todayWorkouts.length > 0 && todayWorkouts.every(tw => {
+    let t = 0, d = 0;
+    tw.exercises.forEach(ex => {
+      const n = ex.sets || 1; t += n;
+      for (let i = 0; i < n; i++) if (getSet(tw.id, ex.id, i, ex).done) d++;
+    });
+    return t > 0 && d >= t;
+  });
+  if (allDone && state.lastCoinDate !== todayISO){
+    state.coins += 1;
+    state.rankPoints += 15;
+    state.lastCoinDate = todayISO;
+  }
   save();
 
   document.getElementById('cSets').textContent = done;
@@ -2967,18 +3142,6 @@ function openWorkoutEditor(id, dayOfWeek){
       colEl.querySelectorAll('.color-pick').forEach(x => x.classList.remove('selected'));
       b.classList.add('selected');
       state.editingWorkout.color = b.dataset.c;
-    };
-  });
-
-  const iconEl = document.getElementById('wkIcons');
-  iconEl.innerHTML = ICONS.map(ic => `
-    <button class="icon-pick ${state.editingWorkout.icon === ic ? 'selected' : ''}" data-i="${ic}">${ic}</button>
-  `).join('');
-  iconEl.querySelectorAll('.icon-pick').forEach(b => {
-    b.onclick = () => {
-      iconEl.querySelectorAll('.icon-pick').forEach(x => x.classList.remove('selected'));
-      b.classList.add('selected');
-      state.editingWorkout.icon = b.dataset.i;
     };
   });
 
@@ -3345,18 +3508,6 @@ function openProfileEditor(id, fromList){
   document.getElementById('profEditTitle').textContent = p ? 'Editar perfil' : 'Novo perfil';
   document.getElementById('profName').value = state.editingProfile.name;
 
-  const iconEl = document.getElementById('profIcons');
-  iconEl.innerHTML = PROFILE_ICONS.map(ic => `
-    <button class="icon-pick ${state.editingProfile.icon === ic ? 'selected' : ''}" data-i="${ic}">${ic}</button>
-  `).join('');
-  iconEl.querySelectorAll('.icon-pick').forEach(b => {
-    b.onclick = () => {
-      iconEl.querySelectorAll('.icon-pick').forEach(x => x.classList.remove('selected'));
-      b.classList.add('selected');
-      state.editingProfile.icon = b.dataset.i;
-    };
-  });
-
   document.getElementById('profEditDelete').classList.toggle('hidden', !p || state.profiles.length <= 1);
   document.getElementById('profEditBg').classList.add('show');
   state.editingProfile._fromList = !!fromList;
@@ -3403,6 +3554,7 @@ document.getElementById('profEditDelete').onclick = () => {
   } catch(e){
     console.error('init error', e);
   }
+  applyRankDecay();
   renderHome();
 
   // Restaura sessão Supabase (se usuário já tinha logado antes)
