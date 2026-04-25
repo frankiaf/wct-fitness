@@ -252,20 +252,35 @@ body {
 
 /* Week bar */
 .week {
-  display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px;
+  display: flex; gap: 10px;
   margin-bottom: 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  padding-bottom: 4px;
+  /* permite que os círculos saiam do padding lateral do .home */
+  margin-left: -20px; margin-right: -20px;
+  padding-left: 20px; padding-right: 20px;
+  scroll-padding-left: 20px;
 }
+.week::-webkit-scrollbar { display: none; }
 .week-day {
   background: var(--surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  padding: 12px 4px;
+  border-radius: 50%;
+  padding: 2px;
   text-align: center;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   position: relative;
   transition: transform .15s, border-color .15s, background .15s;
-  min-height: 68px;
+  width: 80px; height: 80px;
+  flex-shrink: 0;
   box-shadow: var(--shadow-card);
+  touch-action: manipulation;
 }
 .week-day:active { transform: scale(.96); }
 .week-day.today {
@@ -274,11 +289,11 @@ body {
 .week-day.today .week-day-letter,
 .week-day.today .week-day-num { color: var(--invert-text); }
 .week-day-letter {
-  font-size: 11px; color: var(--text-3); font-weight: 500;
-  letter-spacing: -.005em;
+  font-size: 12px; color: var(--text-3); font-weight: 500;
+  letter-spacing: -.005em; line-height: 1;
 }
-.week-day-num { font-size: 16px; font-weight: 600; line-height: 1; letter-spacing: -.02em; }
-.week-day-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border); }
+.week-day-num { font-size: 18px; font-weight: 600; line-height: 1; letter-spacing: -.02em; }
+.week-day-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
 .week-day.done .week-day-dot { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
 .week-day.planned .week-day-dot { background: var(--text-2); }
 .week-day.today .week-day-dot { background: var(--invert-text); box-shadow: none; }
