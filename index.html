@@ -446,7 +446,16 @@ button.stat:hover { border-color: var(--border); }
   font-weight: 500; letter-spacing: -.005em;
   border: 1px solid var(--border-subtle);
 }
-.workout-arrow { color: var(--text-3); font-size: 18px; flex-shrink: 0; font-weight: 400; }
+.workout-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.workout-arrow { color: var(--text-3); font-size: 18px; font-weight: 400; }
+.workout-dup {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  color: var(--text-3);
+  transition: background .15s, color .15s;
+}
+.workout-dup:hover { background: var(--surface-2); color: var(--text-2); }
+.workout-dup:active { transform: scale(.9); }
 .workout-card.today-card {
   background: var(--surface);
   border-color: var(--primary);
@@ -2629,6 +2638,23 @@ function collectMediaIds(exercises){
   }
   return ids;
 }
+function duplicateWorkout(id){
+  const p = activeProfile();
+  const original = p.workouts.find(w => w.id === id);
+  if (!original) return;
+  const clone = JSON.parse(JSON.stringify(original));
+  clone.id = uid();
+  clone.name = original.name + ' (cópia)';
+  clone.exercises = clone.exercises.map(ex => ({
+    ...ex,
+    id: uid(),
+    media: []
+  }));
+  p.workouts.push(clone);
+  save();
+  renderHome();
+  toast('Treino duplicado');
+}
 function deleteWorkout(id){
   const p = activeProfile();
   const victim = p.workouts.find(w => w.id === id);
@@ -2974,7 +3000,12 @@ function renderWorkoutsList(){
             <span>${nEx} ex · ${nSets} séries</span>
           </div>
         </div>
-        <div class="workout-arrow">›</div>
+        <div class="workout-actions">
+          <span class="workout-dup" onclick="event.stopPropagation();duplicateWorkout('${w.id}')" title="Duplicar treino">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </span>
+          <span class="workout-arrow">›</span>
+        </div>
       </button>`;
   }).join('')}</div>`;
 }
