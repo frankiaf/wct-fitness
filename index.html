@@ -250,54 +250,71 @@ body {
 }
 .section-title .link:hover { opacity: .8; }
 
-/* Week bar */
-.week {
-  display: flex; gap: 10px;
-  margin-bottom: 20px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
-  overscroll-behavior-x: contain;
-  padding-bottom: 4px;
-  /* permite que os círculos saiam do padding lateral do .home */
-  margin-left: -20px; margin-right: -20px;
-  padding-left: 20px; padding-right: 20px;
-  scroll-padding-left: 20px;
-}
-.week::-webkit-scrollbar { display: none; }
-.week-day {
+/* Activity heatmap */
+.activity-card {
   background: var(--surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 50%;
-  padding: 2px;
-  text-align: center;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  position: relative;
-  transition: transform .15s, border-color .15s, background .15s;
-  width: 80px; height: 80px;
-  flex-shrink: 0;
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 20px;
   box-shadow: var(--shadow-card);
-  touch-action: manipulation;
 }
-.week-day:active { transform: scale(.96); }
-.week-day.today {
-  background: var(--invert-bg); border-color: var(--invert-bg);
+.activity-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
 }
-.week-day.today .week-day-letter,
-.week-day.today .week-day-num { color: var(--invert-text); }
-.week-day-letter {
-  font-size: 12px; color: var(--text-3); font-weight: 500;
-  letter-spacing: -.005em; line-height: 1;
+.activity-count {
+  font-size: 18px; font-weight: 700;
+  letter-spacing: -.02em; color: var(--text);
 }
-.week-day-num { font-size: 18px; font-weight: 600; line-height: 1; letter-spacing: -.02em; }
-.week-day-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
-.week-day.done .week-day-dot { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
-.week-day.planned .week-day-dot { background: var(--text-2); }
-.week-day.today .week-day-dot { background: var(--invert-text); box-shadow: none; }
-.week-day.selected { border-color: var(--primary); color: var(--primary); }
+.activity-year {
+  font-size: 13px; font-weight: 500;
+  color: var(--text-2);
+  letter-spacing: -.005em;
+}
+.activity-weekdays {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 6px; margin-bottom: 8px;
+  font-size: 11px; color: var(--text-2); font-weight: 500;
+  text-align: center;
+}
+.activity-weekdays span { line-height: 1; letter-spacing: .02em; }
+.activity-cells {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.activity-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: -.01em;
+  position: relative;
+}
+.activity-cell.empty { background: transparent; border-color: transparent; }
+.activity-cell.future { color: var(--text-3); opacity: .65; }
+.activity-cell.l1 { background: color-mix(in oklab, var(--primary) 28%, var(--surface-2)); border-color: transparent; color: var(--text); }
+.activity-cell.l2 { background: color-mix(in oklab, var(--primary) 55%, var(--surface-2)); border-color: transparent; color: #fff; }
+.activity-cell.l3 { background: color-mix(in oklab, var(--primary) 80%, var(--surface-2)); border-color: transparent; color: #fff; }
+.activity-cell.l4 { background: var(--primary); border-color: transparent; color: #fff; }
+.activity-cell.today { box-shadow: 0 0 0 1.5px var(--text); }
+.activity-legend {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 14px;
+  font-size: 11px; color: var(--text-2); font-weight: 500;
+}
+.activity-legend-scale { display: inline-flex; align-items: center; gap: 4px; }
+.activity-legend-scale i {
+  width: 11px; height: 11px; border-radius: 3px; display: inline-block;
+}
+.activity-legend-scale .lvl-1 { background: color-mix(in oklab, var(--primary) 28%, var(--surface-2)); }
+.activity-legend-scale .lvl-2 { background: color-mix(in oklab, var(--primary) 55%, var(--surface-2)); }
+.activity-legend-scale .lvl-3 { background: color-mix(in oklab, var(--primary) 80%, var(--surface-2)); }
+.activity-legend-scale .lvl-4 { background: var(--primary); }
 
 /* Shop */
 .shop-balance {
@@ -875,9 +892,9 @@ button.stat:hover { border-color: var(--border); }
 .countdown-btn.danger { background: transparent; color: var(--danger); border: 1px solid rgba(255,69,58,.35); }
 
 /* ============ TOAST ============ */
-.toast {
+#toast {
   position: fixed; left: 50%; top: 24px;
-  transform: translate(-50%, -120%);
+  transform: translate(-50%, calc(-100% - 48px));
   z-index: 95;
   background: var(--invert-bg); color: var(--invert-text);
   padding: 12px 20px; border-radius: 14px;
@@ -888,8 +905,33 @@ button.stat:hover { border-color: var(--border); }
   transition: transform .3s cubic-bezier(.3,1.4,.5,1);
   max-width: calc(100vw - 40px);
 }
-.toast.show { transform: translate(-50%, 0); }
-.toast.error { background: var(--danger); color: white; }
+#toast.show { transform: translate(-50%, 0); }
+#toast.error { background: var(--danger); color: white; }
+
+/* ============ UPDATE BANNER ============ */
+#updateBanner {
+  position: fixed; left: 50%; bottom: 24px;
+  transform: translate(-50%, calc(100% + 48px));
+  z-index: 96;
+  background: var(--primary); color: #fff;
+  padding: 10px 12px 10px 16px; border-radius: 14px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: var(--shadow-float);
+  font-size: 14px; font-weight: 500;
+  letter-spacing: -.01em;
+  transition: transform .3s cubic-bezier(.3,1.4,.5,1);
+  max-width: calc(100vw - 40px);
+}
+#updateBanner.show { transform: translate(-50%, 0); }
+#updateBanner button {
+  background: rgba(255,255,255,.22); color: #fff;
+  padding: 7px 14px; border-radius: 10px;
+  font-weight: 600; font-size: 13px;
+  letter-spacing: -.005em;
+  transition: background .15s, transform .15s;
+}
+#updateBanner button:hover { background: rgba(255,255,255,.32); }
+#updateBanner button:active { transform: scale(.95); }
 
 /* ============ MODAL ============ */
 .modal-bg {
@@ -1520,9 +1562,26 @@ button.settings-row:active { transform: scale(.985); }
     <!-- Hero -->
     <div id="heroSlot"></div>
 
-    <!-- Week -->
-    <div class="section-title">Sua semana</div>
-    <div class="week" id="weekBar"></div>
+    <!-- Activity calendar -->
+    <div class="section-title">Atividade</div>
+    <div class="activity-card">
+      <div class="activity-header">
+        <div class="activity-count" id="activityCount">0 treinos</div>
+        <span class="activity-year" id="activityMonthLabel">—</span>
+      </div>
+      <div class="activity-weekdays">
+        <span>seg</span><span>ter</span><span>qua</span><span>qui</span><span>sex</span><span>sáb</span><span>dom</span>
+      </div>
+      <div class="activity-cells" id="activityCells"></div>
+      <div class="activity-legend">
+        <span>Volume</span>
+        <div class="activity-legend-scale">
+          <span>Menos</span>
+          <i class="lvl-1"></i><i class="lvl-2"></i><i class="lvl-3"></i><i class="lvl-4"></i>
+          <span>Mais</span>
+        </div>
+      </div>
+    </div>
 
     <!-- Stats -->
     <div class="section-title">Conquistas</div>
@@ -1538,10 +1597,6 @@ button.settings-row:active { transform: scale(.985); }
       </div>
       <button class="stat shop-stat" onclick="openShop()">
         <div class="stat-label">Loja</div>
-        <div class="shop-stat-body">
-          <div class="shop-stat-text">Trocar moedas por recompensas</div>
-          <img src="shop.webp" class="shop-stat-img">
-        </div>
       </button>
     </div>
 
@@ -1557,7 +1612,7 @@ button.settings-row:active { transform: scale(.985); }
 
     <div class="section-title">
       <span>Meus treinos</span>
-      <button class="link" id="addWorkoutLink">+ Novo</button>
+      <button class="profile-pill add" id="addWorkoutLink">+ Novo</button>
     </div>
     <div id="workoutsSlot"></div>
 
@@ -1636,7 +1691,13 @@ button.settings-row:active { transform: scale(.985); }
 </div>
 
 <!-- Toast -->
-<div class="toast" id="toast"><span id="toastMsg"></span></div>
+<div id="toast"><span id="toastMsg"></span></div>
+
+<!-- Update banner (PWA new version available) -->
+<div id="updateBanner">
+  <span>Nova versão disponível</span>
+  <button onclick="applyAppUpdate()">Atualizar</button>
+</div>
 
 <!-- Profile list modal -->
 <div class="modal-bg" id="profListBg">
@@ -1705,6 +1766,21 @@ button.settings-row:active { transform: scale(.985); }
       </div>
     </div>
 
+    <!-- Segurança -->
+    <div class="settings-group hidden" id="accountChangePassGroup">
+      <div class="settings-group-label">Segurança</div>
+      <div class="field" style="margin-bottom:8px;">
+        <label class="field-label" for="accountNewPass">Nova senha</label>
+        <input class="field-input" id="accountNewPass" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label class="field-label" for="accountConfirmPass">Confirmar nova senha</label>
+        <input class="field-input" id="accountConfirmPass" type="password" placeholder="Repita a nova senha" autocomplete="new-password">
+      </div>
+      <div id="accountPassMsg" style="font-size:13px;margin-top:6px;min-height:18px;"></div>
+      <button class="btn-primary" style="width:100%;margin-top:8px;" onclick="doChangePassword(this)">Alterar senha</button>
+    </div>
+
     <!-- Sessão -->
     <div class="settings-group hidden" id="accountSessionGroup">
       <div class="settings-group-label">Sessão</div>
@@ -1721,6 +1797,7 @@ button.settings-row:active { transform: scale(.985); }
 
     <div class="modal-actions">
       <button class="btn-ghost" id="accountClose" onclick="closeAccountModal()">Fechar</button>
+      <button class="btn-primary" id="accountSaveBtn" onclick="saveAccountSettings()">Salvar</button>
     </div>
   </div>
 </div>
@@ -1909,6 +1986,8 @@ async function sbSync() {
       last_decay_check: state.lastDecayCheck,
       last_coin_date: state.lastCoinDate,
       display_name: state.displayName || '',
+      theme: state.theme || 'dark',
+      activity: state.activity || {},
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' });
     if (error) console.error('[SB] sync error:', error.message, error);
@@ -1935,6 +2014,11 @@ async function sbLoad() {
     if (data.last_decay_check) state.lastDecayCheck = data.last_decay_check;
     if (data.last_coin_date) state.lastCoinDate = data.last_coin_date;
     if (data.display_name != null) state.displayName = data.display_name;
+    if (data.theme && (data.theme === 'dark' || data.theme === 'light')) {
+      state.theme = data.theme;
+      applyTheme(data.theme);
+    }
+    if (data.activity && typeof data.activity === 'object') state.activity = data.activity;
     saveRaw();
     await preloadAllMedia();
     renderHome();
@@ -2032,6 +2116,7 @@ const LS = {
   lastDecayCheck: 'wct_last_decay_v1',
   lastCoinDate: 'wct_last_coin_v1',
   displayName: 'wct_display_name_v1',
+  activity: 'wct_activity_v1',
   // legacy
   legacyWorkouts: 'wct_workouts_v2'
 };
@@ -2160,6 +2245,7 @@ function saveRaw(){
     localStorage.setItem(LS.lastDecayCheck, JSON.stringify(state.lastDecayCheck));
     localStorage.setItem(LS.lastCoinDate, JSON.stringify(state.lastCoinDate));
     localStorage.setItem(LS.displayName, state.displayName || '');
+    localStorage.setItem(LS.activity, JSON.stringify(state.activity));
   } catch(e){
     if (e.name === 'QuotaExceededError'){
       toast('Armazenamento cheio — remova algumas imagens.', 'error');
@@ -2187,6 +2273,7 @@ const state = {
   lastDecayCheck: load(LS.lastDecayCheck, null),
   lastCoinDate: load(LS.lastCoinDate, null),
   displayName: localStorage.getItem(LS.displayName) || '',
+  activity: load(LS.activity, {}),
   theme: localStorage.getItem(LS.theme) || 'dark',
   currentWorkoutId: null,
   rest: null,
@@ -2324,6 +2411,7 @@ function setThemeMode(mode){
   if (state.theme === mode) return;
   state.theme = mode;
   applyTheme(mode);
+  if (_sbUser) sbSync();
 }
 
 /* ===================== ACCOUNT MODAL ===================== */
@@ -2348,11 +2436,13 @@ function renderAccountModal(){
     nameInput.value = state.displayName || '';
   }
 
+  const changePassGroup = document.getElementById('accountChangePassGroup');
   if (_sbUser) {
     title.textContent = _sbUser.email || 'Conectado';
     desc.textContent = 'Seus treinos estão sincronizados na nuvem.';
     cta.classList.add('hidden');
     sessionGroup.classList.remove('hidden');
+    if (changePassGroup) changePassGroup.classList.remove('hidden');
   } else {
     title.textContent = 'Não conectado';
     desc.textContent = 'Entre para sincronizar treinos entre dispositivos.';
@@ -2360,6 +2450,7 @@ function renderAccountModal(){
     cta.classList.remove('ghost', 'hidden');
     cta.onclick = () => { closeAccountModal(); showAuthModal(); };
     sessionGroup.classList.add('hidden');
+    if (changePassGroup) changePassGroup.classList.add('hidden');
   }
 
   themeDesc.textContent = state.theme === 'dark' ? 'Escuro' : 'Claro';
@@ -2384,6 +2475,34 @@ function accountCTA(){
   if (_sbUser) { closeAccountModal(); showAuthModal(); }
   else { closeAccountModal(); showAuthModal(); }
 }
+
+function saveAccountSettings(){
+  clearTimeout(_nameSaveTimer);
+  save();
+  toast('Configurações salvas!');
+  closeAccountModal();
+}
+
+async function doChangePassword(btn){
+  const newPass = document.getElementById('accountNewPass').value;
+  const confirmPass = document.getElementById('accountConfirmPass').value;
+  const msg = document.getElementById('accountPassMsg');
+  msg.style.color = 'var(--danger)';
+  if (!newPass) { msg.textContent = 'Digite a nova senha.'; return; }
+  if (newPass.length < 6) { msg.textContent = 'A senha deve ter no mínimo 6 caracteres.'; return; }
+  if (newPass !== confirmPass) { msg.textContent = 'As senhas não coincidem.'; return; }
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Alterando...';
+  const { error } = await _sb.auth.updateUser({ password: newPass });
+  btn.disabled = false; btn.textContent = orig;
+  if (error) { msg.textContent = error.message; return; }
+  msg.style.color = 'var(--success, #30d158)';
+  msg.textContent = 'Senha alterada com sucesso!';
+  document.getElementById('accountNewPass').value = '';
+  document.getElementById('accountConfirmPass').value = '';
+  setTimeout(() => { msg.textContent = ''; }, 3000);
+}
+
 async function accountLogout(){
   closeAccountModal();
   await doLogout();
@@ -2420,7 +2539,7 @@ function greetingFor(h){
 }
 function toast(msg, kind){
   const t = document.getElementById('toast');
-  t.className = 'toast show' + (kind === 'error' ? ' error' : '');
+  t.className = 'show' + (kind === 'error' ? ' error' : '');
   document.getElementById('toastMsg').textContent = msg;
   clearTimeout(state._toastTo);
   state._toastTo = setTimeout(() => t.classList.remove('show'), 2000);
@@ -2616,6 +2735,56 @@ function showView(id){
   document.getElementById('fab').classList.toggle('hidden', id !== 'workoutView');
 }
 
+/* ===================== RENDER ACTIVITY CALENDAR ===================== */
+const MONTHS_PT_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function renderActivity(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDow = new Date(year, month, 1).getDay();
+  const leadingBlanks = (firstDow + 6) % 7;
+
+  const activity = state.activity || {};
+  const pad = n => String(n).padStart(2, '0');
+  const isoFor = day => `${year}-${pad(month + 1)}-${pad(day)}`;
+
+  let monthCount = 0;
+  for (let d = 1; d <= daysInMonth; d++){
+    monthCount += +activity[isoFor(d)] || 0;
+  }
+  const countEl = document.getElementById('activityCount');
+  const monthLabelEl = document.getElementById('activityMonthLabel');
+  if (countEl) countEl.textContent = `${monthCount} treino${monthCount === 1 ? '' : 's'}`;
+  if (monthLabelEl) monthLabelEl.textContent = `${MONTHS_PT_FULL[month]} ${year}`;
+
+  const cellsEl = document.getElementById('activityCells');
+  if (!cellsEl) return;
+  cellsEl.innerHTML = '';
+  const todayDay = today.getDate();
+
+  for (let i = 0; i < leadingBlanks; i++){
+    const blank = document.createElement('div');
+    blank.className = 'activity-cell empty';
+    cellsEl.appendChild(blank);
+  }
+  for (let d = 1; d <= daysInMonth; d++){
+    const iso = isoFor(d);
+    const count = +activity[iso] || 0;
+    const cell = document.createElement('div');
+    cell.className = 'activity-cell';
+    cell.textContent = d;
+    if (d > todayDay) cell.classList.add('future');
+    if (count > 0){
+      const lvl = count >= 4 ? 4 : count >= 3 ? 3 : count >= 2 ? 2 : 1;
+      cell.classList.add('l' + lvl);
+    }
+    if (d === todayDay) cell.classList.add('today');
+    cell.title = `${iso}: ${count} treino${count === 1 ? '' : 's'}`;
+    cellsEl.appendChild(cell);
+  }
+}
+
 /* ===================== RENDER HERO FOR DAY ===================== */
 function renderHeroForDay(dow){
   const p = activeProfile();
@@ -2713,31 +2882,9 @@ function renderHome(){
   renderProfilePills();
 
   const dow = todayDow();
-
-  // Week bar
-  const weekEl = document.getElementById('weekBar');
-  weekEl.innerHTML = '';
   const p = activeProfile();
-  const sunday = new Date(now);
-  sunday.setDate(sunday.getDate() - (sunday.getDay() === 0 ? 6 : sunday.getDay() - 1));
-  for (let i = 0; i < 7; i++){
-    const d = new Date(sunday);
-    d.setDate(sunday.getDate() + i);
-    const dDow = d.getDay();
-    const isToday = dDow === dow;
-    const hasPlan = p.workouts.some(w => workoutDays(w).includes(dDow));
-    const el = document.createElement('button');
-    el.dataset.dow = dDow;
-    el.className = 'week-day' + (isToday ? ' today' : '') + (hasPlan ? ' planned' : '');
-    el.innerHTML = `
-      <span class="week-day-letter">${DAYS_LETTER[dDow]}</span>
-      <span class="week-day-num">${d.getDate()}</span>
-      <span class="week-day-dot"></span>
-    `;
-    el.onclick = () => renderHeroForDay(dDow);
-    weekEl.appendChild(el);
-  }
 
+  renderActivity();
   renderHeroForDay(dow);
 
   // Stats
@@ -3341,6 +3488,8 @@ function maybeCompleteWorkout(){
   checkWeekReset();
   state.week.count += 1;
   state.total += 1;
+  if (!state.activity) state.activity = {};
+  state.activity[todayISO] = (state.activity[todayISO] || 0) + 1;
   state.lastDecayCheck = todayISO;
 
   // Moeda e rank só quando TODOS os treinos do dia estiverem concluídos
@@ -3901,7 +4050,45 @@ document.getElementById('profEditDelete').onclick = () => {
   });
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    let _swReg = null;
+    let _refreshing = false;
+
+    window.applyAppUpdate = () => {
+      if (_swReg && _swReg.waiting) {
+        _swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    };
+
+    const showUpdateBanner = () => {
+      const b = document.getElementById('updateBanner');
+      if (b) b.classList.add('show');
+    };
+
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      _swReg = reg;
+      if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner();
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBanner();
+          }
+        });
+      });
+      reg.update().catch(() => {});
+    }).catch(() => {});
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (_refreshing) return;
+      _refreshing = true;
+      window.location.reload();
+    });
+
+    setInterval(() => { if (_swReg) _swReg.update().catch(() => {}); }, 30 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && _swReg) _swReg.update().catch(() => {});
+    });
   }
 })();
 </script>
