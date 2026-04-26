@@ -267,11 +267,23 @@ body {
   font-size: 18px; font-weight: 700;
   letter-spacing: -.02em; color: var(--text);
 }
+.activity-month-nav {
+  display: flex; align-items: center; gap: 4px;
+}
 .activity-year {
   font-size: 13px; font-weight: 500;
   color: var(--text-2);
   letter-spacing: -.005em;
 }
+.activity-nav-btn {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-2); font-size: 16px;
+  transition: background .15s, color .15s;
+}
+.activity-nav-btn:hover { background: var(--surface-2); color: var(--text); }
+.activity-nav-btn:active { transform: scale(.9); }
+.activity-nav-btn:disabled { opacity: .3; pointer-events: none; }
 .activity-weekdays {
   display: grid; grid-template-columns: repeat(7, 1fr);
   gap: 6px; margin-bottom: 8px;
@@ -302,6 +314,9 @@ body {
 .activity-cell.l3 { background: color-mix(in oklab, var(--primary) 80%, var(--surface-2)); border-color: transparent; color: #fff; }
 .activity-cell.l4 { background: var(--primary); border-color: transparent; color: #fff; }
 .activity-cell.today { box-shadow: 0 0 0 1.5px var(--text); }
+.activity-cell.selected { box-shadow: 0 0 0 2px var(--primary); }
+.activity-cell:not(.empty):not(.future) { cursor: pointer; }
+.activity-cell:not(.empty):not(.future):active { transform: scale(.88); transition: transform .1s; }
 .activity-legend {
   display: flex; justify-content: space-between; align-items: center;
   margin-top: 14px;
@@ -417,7 +432,24 @@ button.stat:hover { border-color: var(--border); }
 
 /* Workouts list */
 .workouts { display: flex; flex-direction: column; gap: 10px; }
+.workout-card-wrap {
+  position: relative; overflow: hidden;
+  border-radius: 16px;
+}
+.workout-card-del-btn {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 88px;
+  background: var(--danger);
+  color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font-size: 12px; font-weight: 600; letter-spacing: -.005em;
+  cursor: pointer;
+  user-select: none;
+}
+.workout-card-del-btn svg { flex-shrink: 0; }
 .workout-card {
+  will-change: transform;
+  touch-action: pan-y;
   background: var(--surface);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
@@ -1576,20 +1608,16 @@ button.settings-row:active { transform: scale(.985); }
     <div class="activity-card">
       <div class="activity-header">
         <div class="activity-count" id="activityCount">0 treinos</div>
-        <span class="activity-year" id="activityMonthLabel">—</span>
+        <div class="activity-month-nav">
+          <button class="activity-nav-btn" id="activityPrev" onclick="shiftActivityMonth(-1)">‹</button>
+          <span class="activity-year" id="activityMonthLabel">—</span>
+          <button class="activity-nav-btn" id="activityNext" onclick="shiftActivityMonth(1)">›</button>
+        </div>
       </div>
       <div class="activity-weekdays">
         <span>seg</span><span>ter</span><span>qua</span><span>qui</span><span>sex</span><span>sáb</span><span>dom</span>
       </div>
       <div class="activity-cells" id="activityCells"></div>
-      <div class="activity-legend">
-        <span>Volume</span>
-        <div class="activity-legend-scale">
-          <span>Menos</span>
-          <i class="lvl-1"></i><i class="lvl-2"></i><i class="lvl-3"></i><i class="lvl-4"></i>
-          <span>Mais</span>
-        </div>
-      </div>
     </div>
 
     <!-- Stats -->
@@ -1609,17 +1637,7 @@ button.settings-row:active { transform: scale(.985); }
       </button>
     </div>
 
-    <div class="ring-card">
-      <div class="ring" id="weekRing" style="--pct: 0;">
-        <div class="ring-text"><span id="weekPct">0</span>%</div>
-      </div>
-      <div class="ring-info">
-        <h3 id="ringTitle">Sua semana</h3>
-        <p id="ringSub">Complete seus treinos para manter o streak aceso.</p>
-      </div>
-    </div>
-
-    <div class="section-title">
+<div class="section-title">
       <span>Meus treinos</span>
       <button class="profile-pill add" id="addWorkoutLink">+ Novo</button>
     </div>
@@ -2638,6 +2656,74 @@ function collectMediaIds(exercises){
   }
   return ids;
 }
+let _swipedCard = null;
+
+function closeSwipedCard(){
+  if (!_swipedCard) return;
+  _swipedCard.style.transition = 'transform .28s cubic-bezier(.3,1,.5,1)';
+  _swipedCard.style.transform = 'translateX(0)';
+  _swipedCard.classList.remove('swiped');
+  _swipedCard = null;
+}
+
+function swipeDeleteWorkout(id){
+  closeSwipedCard();
+  if (!confirm('Excluir este treino? Essa ação não pode ser desfeita.')) return;
+  deleteWorkout(id);
+  renderHome();
+}
+
+function attachSwipeDelete(){
+  const REVEAL = 88, THRESHOLD = 44;
+  document.querySelectorAll('.workout-card-wrap').forEach(wrap => {
+    const card = wrap.querySelector('.workout-card');
+    let startX = 0, startY = 0, moved = 0, dragging = false;
+
+    card.addEventListener('touchstart', e => {
+      if (_swipedCard && _swipedCard !== card) closeSwipedCard();
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      moved = 0; dragging = false;
+      card.style.transition = 'none';
+    }, { passive: true });
+
+    card.addEventListener('touchmove', e => {
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (!dragging && Math.abs(dy) > Math.abs(dx) + 5) return;
+      if (dx > 0 && !card.classList.contains('swiped')) return;
+      dragging = true;
+      moved = Math.min(0, Math.max(-REVEAL, card.classList.contains('swiped') ? dx - REVEAL : dx));
+      card.style.transform = `translateX(${moved}px)`;
+    }, { passive: true });
+
+    card.addEventListener('touchend', () => {
+      card.style.transition = 'transform .28s cubic-bezier(.3,1,.5,1)';
+      if (moved < -THRESHOLD) {
+        card.style.transform = `translateX(-${REVEAL}px)`;
+        card.classList.add('swiped');
+        _swipedCard = card;
+      } else {
+        card.style.transform = 'translateX(0)';
+        card.classList.remove('swiped');
+        if (_swipedCard === card) _swipedCard = null;
+      }
+      dragging = false;
+    });
+
+    card.addEventListener('click', e => {
+      if (card.classList.contains('swiped')) {
+        e.preventDefault(); e.stopPropagation();
+        closeSwipedCard();
+      }
+    });
+  });
+
+  document.addEventListener('touchstart', e => {
+    if (_swipedCard && !e.target.closest('.workout-card-wrap')) closeSwipedCard();
+  }, { passive: true });
+}
+
 function duplicateWorkout(id){
   const p = activeProfile();
   const original = p.workouts.find(w => w.id === id);
@@ -2763,10 +2849,23 @@ function showView(id){
 
 /* ===================== RENDER ACTIVITY CALENDAR ===================== */
 const MONTHS_PT_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let _activityOffset = 0;
+
+function shiftActivityMonth(delta){
+  const now = new Date();
+  const newOffset = _activityOffset + delta;
+  const target = new Date(now.getFullYear(), now.getMonth() + newOffset, 1);
+  if (target > now) return;
+  _activityOffset = newOffset;
+  renderActivity();
+}
+
 function renderActivity(){
-  const today = new Date(); today.setHours(0,0,0,0);
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  const now = new Date(); now.setHours(0,0,0,0);
+  const ref = new Date(now.getFullYear(), now.getMonth() + _activityOffset, 1);
+  const year = ref.getFullYear();
+  const month = ref.getMonth();
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDow = new Date(year, month, 1).getDay();
   const leadingBlanks = (firstDow + 6) % 7;
@@ -2781,13 +2880,15 @@ function renderActivity(){
   }
   const countEl = document.getElementById('activityCount');
   const monthLabelEl = document.getElementById('activityMonthLabel');
+  const nextBtn = document.getElementById('activityNext');
   if (countEl) countEl.textContent = `${monthCount} treino${monthCount === 1 ? '' : 's'}`;
   if (monthLabelEl) monthLabelEl.textContent = `${MONTHS_PT_FULL[month]} ${year}`;
+  if (nextBtn) nextBtn.disabled = isCurrentMonth;
 
   const cellsEl = document.getElementById('activityCells');
   if (!cellsEl) return;
   cellsEl.innerHTML = '';
-  const todayDay = today.getDate();
+  const todayDay = isCurrentMonth ? now.getDate() : daysInMonth + 1;
 
   for (let i = 0; i < leadingBlanks; i++){
     const blank = document.createElement('div');
@@ -2800,12 +2901,21 @@ function renderActivity(){
     const cell = document.createElement('div');
     cell.className = 'activity-cell';
     cell.textContent = d;
-    if (d > todayDay) cell.classList.add('future');
+    if (d > todayDay){
+      cell.classList.add('future');
+    } else {
+      const cellDow = new Date(year, month, d).getDay();
+      cell.onclick = () => {
+        document.querySelectorAll('.activity-cell.selected').forEach(el => el.classList.remove('selected'));
+        cell.classList.add('selected');
+        renderHeroForDay(cellDow);
+      };
+    }
     if (count > 0){
       const lvl = count >= 4 ? 4 : count >= 3 ? 3 : count >= 2 ? 2 : 1;
       cell.classList.add('l' + lvl);
     }
-    if (d === todayDay) cell.classList.add('today');
+    if (isCurrentMonth && d === now.getDate()) { cell.classList.add('today', 'selected'); }
     cell.title = `${iso}: ${count} treino${count === 1 ? '' : 's'}`;
     cellsEl.appendChild(cell);
   }
@@ -2914,21 +3024,8 @@ function renderHome(){
   renderHeroForDay(dow);
 
   // Stats
-  const goal = Math.max(1, new Set(p.workouts.flatMap(w => workoutDays(w))).size) || p.workouts.length || 1;
   document.getElementById('coinsVal').textContent = state.coins;
   renderRankCard();
-  const pct = Math.min(100, Math.round(state.week.count / goal * 100));
-  document.getElementById('weekRing').style.setProperty('--pct', pct);
-  document.getElementById('weekPct').textContent = pct;
-  if (state.week.count >= goal && goal > 0){
-    document.getElementById('ringTitle').textContent = 'Meta da semana concluída';
-    document.getElementById('ringSub').textContent  = 'Treinos extras são bônus.';
-  } else {
-    document.getElementById('ringTitle').textContent = 'Sua semana';
-    document.getElementById('ringSub').textContent  = p.workouts.length > 0
-      ? `Faltam ${goal - state.week.count} treinos para fechar a semana.`
-      : 'Crie seu primeiro treino para começar.';
-  }
 
   renderWorkoutsList();
 }
@@ -2985,29 +3082,37 @@ function renderWorkoutsList(){
     return ao - bo;
   });
   slot.innerHTML = `<div class="workouts">${sorted.map(w => {
+
     const c = colorOf(w.color);
     const isToday = workoutDays(w).includes(todayDowN);
     const nEx = w.exercises.length;
     const nSets = w.exercises.reduce((a,e) => a + (e.sets||0), 0);
     return `
-      <button class="workout-card ${isToday?'today-card':''}"
-        style="--wc:${c.hex}; --wc-soft: color-mix(in oklab, ${c.hex} 16%, transparent); --wbg: color-mix(in oklab, ${c.hex} 16%, transparent);"
-        onclick="openWorkout('${w.id}')">
-        <div class="workout-body">
-          <div class="workout-title">${escapeHtml(w.name)}</div>
-          <div class="workout-sub">
-            ${workoutDays(w).length > 0 ? `<span class="day-chip">${workoutDays(w).map(d => DAYS[d]).join(', ')}</span>` : '<span class="day-chip" style="--wc:var(--text-3); --wc-soft: var(--surface-2);">Livre</span>'}
-            <span>${nEx} ex · ${nSets} séries</span>
+      <div class="workout-card-wrap">
+        <div class="workout-card-del-btn" onclick="swipeDeleteWorkout('${w.id}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          Excluir
+        </div>
+        <button class="workout-card ${isToday?'today-card':''}"
+          style="--wc:${c.hex}; --wc-soft: color-mix(in oklab, ${c.hex} 16%, transparent); --wbg: color-mix(in oklab, ${c.hex} 16%, transparent);"
+          onclick="openWorkout('${w.id}')">
+          <div class="workout-body">
+            <div class="workout-title">${escapeHtml(w.name)}</div>
+            <div class="workout-sub">
+              ${workoutDays(w).length > 0 ? `<span class="day-chip">${workoutDays(w).map(d => DAYS[d]).join(', ')}</span>` : '<span class="day-chip" style="--wc:var(--text-3); --wc-soft: var(--surface-2);">Livre</span>'}
+              <span>${nEx} ex · ${nSets} séries</span>
+            </div>
           </div>
-        </div>
-        <div class="workout-actions">
-          <span class="workout-dup" onclick="event.stopPropagation();duplicateWorkout('${w.id}')" title="Duplicar treino">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </span>
-          <span class="workout-arrow">›</span>
-        </div>
-      </button>`;
+          <div class="workout-actions">
+            <span class="workout-dup" onclick="event.stopPropagation();duplicateWorkout('${w.id}')" title="Duplicar treino">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </span>
+            <span class="workout-arrow">›</span>
+          </div>
+        </button>
+      </div>`;
   }).join('')}</div>`;
+  attachSwipeDelete();
 }
 
 /* ===================== OPEN WORKOUT ===================== */
