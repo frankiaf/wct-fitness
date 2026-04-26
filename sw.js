@@ -1,4 +1,4 @@
-const VERSION = 'wct-v2';
+const VERSION = 'reps-v1';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {

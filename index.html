@@ -1158,6 +1158,13 @@ button.stat:hover { border-color: var(--border); }
   color: var(--text);
 }
 .modal-sub { font-size: 14px; color: var(--text-2); margin-bottom: 22px; font-weight: 400; letter-spacing: -.005em; line-height: 1.45; }
+#confirmModalBg { z-index: 200; }
+.confirm-modal { text-align: center; }
+.confirm-modal .modal-handle { margin-bottom: 22px; }
+.confirm-modal .modal-title { font-size: 20px; }
+.confirm-modal .modal-sub { margin-bottom: 28px; }
+.confirm-icon { font-size: 36px; margin-bottom: 12px; line-height: 1; }
+.confirm-modal .btn-primary.danger { background: var(--danger); box-shadow: 0 4px 14px color-mix(in oklab, var(--danger) 35%, transparent); }
 
 /* Form */
 .field { margin-bottom: 16px; }
@@ -2061,6 +2068,20 @@ button.settings-row:active { transform: scale(.985); }
   </div>
 </div>
 
+<!-- Confirm dialog -->
+<div class="modal-bg" id="confirmModalBg">
+  <div class="modal confirm-modal" role="dialog" aria-modal="true">
+    <div class="modal-handle"></div>
+    <div class="confirm-icon" id="confirmIcon"></div>
+    <div class="modal-title" id="confirmTitle"></div>
+    <div class="modal-sub" id="confirmMsg"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="confirmCancel">Cancelar</button>
+      <button class="btn-primary" id="confirmOk"></button>
+    </div>
+  </div>
+</div>
+
 <!-- Workout editor -->
 <div class="modal-bg" id="wkModalBg">
   <div class="modal" role="dialog" aria-modal="true">
@@ -2321,7 +2342,7 @@ async function doSignup() {
 }
 
 async function doLogout() {
-  if (!confirm('Sair da conta?')) return;
+  if (!await appConfirm('Sair da conta?', { confirmText: 'Sair', danger: true, emoji: '👋' })) return;
   await _sb.auth.signOut();
   _sbUser = null;
   updateAuthBtn();
@@ -2884,9 +2905,9 @@ function closeSwipedCard(){
   _swipedCard = null;
 }
 
-function swipeDeleteWorkout(id){
+async function swipeDeleteWorkout(id){
   closeSwipedCard();
-  if (!confirm('Excluir este treino? Essa ação não pode ser desfeita.')) return;
+  if (!await appConfirm('Excluir este treino?', { confirmText: 'Excluir', danger: true, emoji: '🗑️' })) return;
   deleteWorkout(id);
   renderHome();
 }
@@ -4031,9 +4052,9 @@ document.getElementById('wkSave').onclick = () => {
   }
   toast('Treino salvo');
 };
-document.getElementById('wkDelete').onclick = () => {
+document.getElementById('wkDelete').onclick = async () => {
   if (!state.editingWorkout.id) return;
-  if (!confirm('Excluir este treino? Essa ação não pode ser desfeita.')) return;
+  if (!await appConfirm('Excluir este treino?', { confirmText: 'Excluir', danger: true, emoji: '🗑️' })) return;
   deleteWorkout(state.editingWorkout.id);
   closeWorkoutEditor();
   state.currentWorkoutId = null;
@@ -4289,10 +4310,10 @@ document.getElementById('exSave').onclick = () => {
   toast('Exercício salvo');
 };
 
-document.getElementById('exDelete').onclick = () => {
+document.getElementById('exDelete').onclick = async () => {
   const e = state.editingExercise;
   if (!e.id) return;
-  if (!confirm('Excluir este exercício?')) return;
+  if (!await appConfirm('Excluir este exercício?', { confirmText: 'Excluir', danger: true, emoji: '🗑️' })) return;
   deleteExercise(e.workoutId, e.id);
   closeExerciseEditor();
   renderExercises();
@@ -4397,9 +4418,9 @@ document.getElementById('profEditSave').onclick = () => {
   renderHome();
   toast('Perfil salvo');
 };
-document.getElementById('profEditDelete').onclick = () => {
+document.getElementById('profEditDelete').onclick = async () => {
   if (!state.editingProfile.id) return;
-  if (!confirm('Excluir este perfil? Todos os treinos dele serão removidos.')) return;
+  if (!await appConfirm('Excluir este perfil?', { confirmText: 'Excluir', danger: true, emoji: '⚠️' })) return;
   const ok = deleteProfile(state.editingProfile.id);
   if (!ok) return;
   closeProfileEditor();
@@ -4482,6 +4503,37 @@ document.getElementById('profEditDelete').onclick = () => {
       if (document.visibilityState === 'visible' && _swReg) _swReg.update().catch(() => {});
     });
   }
+})();
+
+/* ===================== CUSTOM CONFIRM ===================== */
+(function(){
+  let _resolve = null;
+  const bg     = document.getElementById('confirmModalBg');
+  const okBtn  = document.getElementById('confirmOk');
+  const cancel = document.getElementById('confirmCancel');
+  const title  = document.getElementById('confirmTitle');
+  const msg    = document.getElementById('confirmMsg');
+  const icon   = document.getElementById('confirmIcon');
+
+  function close(val){
+    bg.classList.remove('show');
+    if (_resolve) { _resolve(val); _resolve = null; }
+  }
+
+  okBtn.addEventListener('click', () => close(true));
+  cancel.addEventListener('click', () => close(false));
+  bg.addEventListener('click', e => { if (e.target === bg) close(false); });
+
+  window.appConfirm = function(message, { confirmText = 'Confirmar', danger = false, emoji = '' } = {}){
+    title.textContent  = message;
+    msg.textContent    = '';
+    icon.textContent   = emoji;
+    icon.style.display = emoji ? '' : 'none';
+    okBtn.textContent  = confirmText;
+    okBtn.classList.toggle('danger', danger);
+    bg.classList.add('show');
+    return new Promise(res => { _resolve = res; });
+  };
 })();
 </script>
 </body>
