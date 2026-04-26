@@ -1,11 +1,11 @@
 {
-  "name": "WCT Fitness",
-  "short_name": "WCT",
+  "name": "REPS",
+  "short_name": "REPS",
   "description": "Seus treinos sempre com você",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#0A84FF",
+  "theme_color": "#0A0A11",
   "orientation": "portrait",
   "icons": [
     {

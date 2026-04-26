@@ -7,11 +7,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="WCT Fitness">
+<meta name="apple-mobile-web-app-title" content="REPS">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
-<title>WCT Fitness</title>
+<title>REPS</title>
 <style>
 /* ============ RESET / BASE ============ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -88,6 +88,19 @@ body {
   background: var(--bg);
   font-feature-settings: "ss01", "cv11";
   letter-spacing: -0.015em;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+input, textarea, select, [contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 /* ============ HEADER ============ */
@@ -107,9 +120,15 @@ body {
 }
 .logo-mark {
   width: 28px; height: 28px; border-radius: 8px;
-  background: var(--text); color: var(--bg);
+  background: linear-gradient(140deg, #0A84FF, #0050D5);
+  color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; letter-spacing: -.02em;
+  font-size: 16px; font-weight: 900; font-style: italic;
+  letter-spacing: -.04em;
+  box-shadow: 0 2px 6px rgba(10,132,255,.35), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.logo span:last-child {
+  font-weight: 800; letter-spacing: -.03em;
 }
 .theme-toggle {
   width: 38px; height: 38px; border-radius: 50%;
@@ -332,35 +351,168 @@ body {
 .activity-legend-scale .lvl-4 { background: var(--primary); }
 
 /* Shop */
-.shop-balance {
-  font-size: 14px; font-weight: 500; color: var(--text-2);
-  margin-bottom: 16px; letter-spacing: -.01em;
+/* Shop — balance card */
+.shop-balance-card {
+  background: linear-gradient(135deg,
+    color-mix(in oklab, var(--primary) 14%, var(--surface-2)),
+    color-mix(in oklab, var(--primary) 4%, var(--surface-2)));
+  border: 1px solid color-mix(in oklab, var(--primary) 18%, transparent);
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+  display: flex; align-items: center; gap: 14px;
 }
-.shop-balance strong { color: var(--text); font-weight: 600; font-size: 16px; }
-.shop-item {
+.shop-balance-icon {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: linear-gradient(140deg, var(--primary), color-mix(in oklab, var(--primary) 70%, #000));
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; flex-shrink: 0;
+  box-shadow: 0 6px 16px color-mix(in oklab, var(--primary) 35%, transparent),
+              inset 0 1px 0 rgba(255,255,255,.18);
+}
+.shop-balance-info { flex: 1; min-width: 0; }
+.shop-balance-label {
+  font-size: 11px; color: var(--text-2);
+  font-weight: 500; letter-spacing: .06em;
+  text-transform: uppercase; line-height: 1;
+}
+.shop-balance-amount {
+  font-size: 28px; font-weight: 700;
+  letter-spacing: -.03em; color: var(--text);
+  margin-top: 4px; line-height: 1;
+  display: flex; align-items: baseline; gap: 6px;
+}
+.shop-balance-amount small {
+  font-size: 13px; color: var(--text-2);
+  font-weight: 500; letter-spacing: -.005em;
+}
+
+.shop-section-label {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: .08em; text-transform: uppercase;
+  margin: 0 0 10px 4px;
+}
+
+/* Shop — item cards */
+.shop-card {
   display: flex; align-items: center; gap: 12px;
-  padding: 14px 0; border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 12px 12px 12px 16px;
+  margin-bottom: 8px;
+  transition: border-color .15s, opacity .2s, transform .15s;
 }
-.shop-item-info { flex: 1; min-width: 0; }
-.shop-item-name { font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
-.shop-item-cost { font-size: 13px; color: var(--text-2); font-weight: 400; margin-top: 2px; }
-.shop-item-actions { display: flex; gap: 8px; align-items: center; }
+.shop-card.affordable { border-color: color-mix(in oklab, var(--primary) 22%, var(--border-subtle)); }
+.shop-card.locked { opacity: .55; }
+.shop-card-info { flex: 1; min-width: 0; }
+.shop-card-name {
+  font-size: 15px; font-weight: 600;
+  letter-spacing: -.015em; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.shop-card-cost {
+  font-size: 12px; color: var(--text-2);
+  margin-top: 4px; font-weight: 500;
+  letter-spacing: -.005em;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.shop-card-coin {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: linear-gradient(140deg, var(--primary), color-mix(in oklab, var(--primary) 70%, #000));
+  color: #fff; font-size: 9px; font-weight: 800;
+  letter-spacing: -.04em;
+  flex-shrink: 0;
+}
+.shop-card-locked-msg { color: var(--text-3); }
+.shop-card-actions { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
 .shop-redeem-btn {
-  padding: 8px 14px; border-radius: 10px;
-  background: var(--primary); color: var(--on-primary);
-  font-size: 13px; font-weight: 500; letter-spacing: -.01em;
-  transition: transform .15s, opacity .15s;
+  padding: 9px 16px; border-radius: 10px;
+  background: var(--primary); color: var(--on-primary, #fff);
+  font-size: 13px; font-weight: 600; letter-spacing: -.005em;
+  transition: transform .15s, opacity .15s, background .15s;
 }
-.shop-redeem-btn:hover { opacity: .9; }
+.shop-redeem-btn:hover { opacity: .92; }
 .shop-redeem-btn:active { transform: scale(.95); }
-.shop-redeem-btn:disabled { opacity: .35; cursor: not-allowed; }
-.shop-delete-btn { font-size: 18px; color: var(--text-3); line-height: 1; padding: 4px; }
-.shop-delete-btn:hover { color: var(--danger); }
-.shop-empty { font-size: 14px; color: var(--text-3); padding: 16px 0; text-align: center; }
-.shop-add-form { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border-subtle); }
-.shop-add-title { font-size: 13px; font-weight: 600; letter-spacing: -.01em; color: var(--text); margin-bottom: 10px; }
-.shop-add-row { display: flex; gap: 8px; margin-top: 8px; }
-.shop-add-row .field-input { flex: 1; }
+.shop-redeem-btn:disabled {
+  background: var(--surface-3);
+  color: var(--text-3);
+  cursor: not-allowed;
+}
+.shop-delete-btn {
+  width: 30px; height: 30px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-3);
+  transition: background .15s, color .15s;
+}
+.shop-delete-btn:hover { background: var(--danger-soft); color: var(--danger); }
+.shop-delete-btn:active { transform: scale(.92); }
+
+/* Shop — empty state */
+.shop-empty {
+  text-align: center; padding: 32px 16px;
+  background: var(--surface-2);
+  border: 1px dashed var(--border-subtle);
+  border-radius: 14px;
+  margin-bottom: 8px;
+}
+.shop-empty-icon {
+  width: 56px; height: 56px; border-radius: 16px;
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 12px;
+  color: var(--text-3);
+}
+.shop-empty-title {
+  font-size: 15px; font-weight: 600;
+  color: var(--text); margin-bottom: 4px;
+  letter-spacing: -.01em;
+}
+.shop-empty-sub {
+  font-size: 13px; color: var(--text-2);
+  letter-spacing: -.005em;
+  line-height: 1.45;
+}
+
+/* Shop — collapsible add form */
+.shop-add-toggle {
+  width: 100%; padding: 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--text-2); font-size: 14px; font-weight: 500;
+  letter-spacing: -.005em;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 14px;
+  transition: all .18s;
+}
+.shop-add-toggle:hover { border-color: var(--text-2); color: var(--text); }
+.shop-add-toggle.expanded {
+  border-color: transparent;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+.shop-add-toggle svg { transition: transform .25s; }
+.shop-add-toggle.expanded svg { transform: rotate(45deg); }
+
+.shop-add-form-wrap {
+  max-height: 0; overflow: hidden;
+  transition: max-height .32s ease, opacity .25s ease;
+  opacity: 0;
+}
+.shop-add-form-wrap.expanded {
+  max-height: 260px; opacity: 1;
+}
+.shop-add-form {
+  padding: 14px;
+  background: var(--surface-2);
+  border-radius: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.shop-add-form-row { display: flex; gap: 8px; }
+.shop-add-form-row .field-input { flex: 1; }
 
 /* Stats */
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 6px; }
@@ -1049,6 +1201,95 @@ button.stat:hover { border-color: var(--border); }
 .field-input::placeholder, .field-textarea::placeholder { color: var(--text-3); font-weight: 400; }
 .field-textarea { font-weight: 400; line-height: 1.5; min-height: 100px; }
 
+/* Section divider for modals */
+.section-divider {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: .08em; text-transform: uppercase;
+  margin: 22px 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Stepper input */
+.stepper {
+  display: flex; align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+}
+.stepper-btn {
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-2);
+  font-size: 20px; font-weight: 400; line-height: 1;
+  background: transparent;
+  transition: background .15s, color .15s, transform .12s;
+  flex-shrink: 0;
+}
+.stepper-btn:hover { background: var(--surface-3); color: var(--text); }
+.stepper-btn:active { transform: scale(.92); }
+.stepper-input {
+  flex: 1; min-width: 0;
+  background: transparent; border: none;
+  text-align: center;
+  font-size: 17px; font-weight: 600;
+  color: var(--text);
+  letter-spacing: -.02em;
+  padding: 8px 0;
+  font-family: inherit;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.stepper-input::-webkit-outer-spin-button,
+.stepper-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper-input:focus { outline: none; }
+.stepper-suffix {
+  font-size: 13px; font-weight: 500;
+  color: var(--text-2);
+  margin-right: 6px;
+  letter-spacing: -.005em;
+}
+
+/* Media upload card */
+.media-upload-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 22px 16px;
+  background: var(--surface-2);
+  border: 1.5px dashed var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color .18s, background .18s;
+  text-align: center;
+}
+.media-upload-card:hover {
+  border-color: color-mix(in oklab, var(--primary) 60%, var(--border));
+  background: color-mix(in oklab, var(--primary) 5%, var(--surface-2));
+}
+.media-upload-card input { display: none; }
+.media-upload-icon-box {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-2);
+  margin-bottom: 10px;
+  border: 1px solid var(--border-subtle);
+}
+.media-upload-text {
+  font-size: 14px; font-weight: 600;
+  color: var(--text);
+  letter-spacing: -.01em;
+  line-height: 1.2;
+}
+.media-upload-hint {
+  font-size: 12px; color: var(--text-2);
+  margin-top: 4px;
+  letter-spacing: -.005em;
+}
+
 .segmented {
   display: flex; gap: 4px;
   background: var(--surface-2);
@@ -1550,8 +1791,8 @@ button.settings-row:active { transform: scale(.985); }
 <div class="auth-overlay" id="authOverlay">
   <div class="auth-card">
     <div class="auth-logo">
-      <div class="logo-mark"><span>W</span></div>
-      <span>WCT Fitness</span>
+      <div class="logo-mark"><span>R</span></div>
+      <span>REPS</span>
     </div>
     <!-- LOGIN -->
     <div id="authModeLogin">
@@ -1591,8 +1832,8 @@ button.settings-row:active { transform: scale(.985); }
 <!-- HEADER -->
 <header class="app-header">
   <div class="logo">
-    <div class="logo-mark"><span>W</span></div>
-    <span>WCT Fitness</span>
+    <div class="logo-mark"><span>R</span></div>
+    <span>REPS</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center">
     <button class="theme-toggle" id="authHeaderBtn" aria-label="Conta"
@@ -1704,17 +1945,36 @@ button.settings-row:active { transform: scale(.985); }
 <div class="modal-bg" id="shopModalBg">
   <div class="modal" role="dialog" aria-modal="true">
     <div class="modal-handle"></div>
-    <div class="modal-title">Loja</div>
-    <div class="shop-balance">Saldo: <strong id="shopCoinsDisplay">0</strong> moedas</div>
-    <div id="shopItemsList"></div>
-    <div class="shop-add-form">
-      <div class="shop-add-title">Adicionar produto</div>
-      <input class="field-input" id="shopItemName" placeholder="Nome (ex: Hamburguer)" maxlength="40">
-      <div class="shop-add-row">
-        <input class="field-input" id="shopItemCost" type="number" min="1" placeholder="Custo em moedas">
-        <button class="btn-primary" id="shopAddBtn">Adicionar</button>
+    <div class="modal-title">Loja de recompensas</div>
+    <div class="modal-sub">Resgate suas conquistas com as moedas que você ganhou.</div>
+
+    <div class="shop-balance-card">
+      <div class="shop-balance-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>
+      </div>
+      <div class="shop-balance-info">
+        <div class="shop-balance-label">Saldo atual</div>
+        <div class="shop-balance-amount"><span id="shopCoinsDisplay">0</span><small id="shopCoinsLabel">moedas</small></div>
       </div>
     </div>
+
+    <div class="shop-section-label" id="shopSectionLabel">Recompensas</div>
+    <div id="shopItemsList"></div>
+
+    <button class="shop-add-toggle" id="shopAddToggle" onclick="toggleShopAddForm()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span id="shopAddToggleLabel">Adicionar produto</span>
+    </button>
+    <div class="shop-add-form-wrap" id="shopAddFormWrap">
+      <div class="shop-add-form">
+        <input class="field-input" id="shopItemName" placeholder="Nome (ex: Hambúrguer)" maxlength="40">
+        <div class="shop-add-form-row">
+          <input class="field-input" id="shopItemCost" type="number" min="1" placeholder="Custo em moedas">
+          <button class="btn-primary" id="shopAddBtn">Salvar</button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-ghost" id="shopClose">Fechar</button>
     </div>
@@ -1895,11 +2155,11 @@ button.settings-row:active { transform: scale(.985); }
   <div class="modal" role="dialog" aria-modal="true">
     <div class="modal-handle"></div>
     <div class="modal-title" id="exModalTitle">Novo exercício</div>
-    <div class="modal-sub">Defina o tipo, séries, e adicione descrição e fotos.</div>
+    <div class="modal-sub">Configure o exercício como preferir.</div>
 
     <div class="field">
-      <label class="field-label">Nome</label>
-      <input class="field-input" id="exName" maxlength="50" placeholder="Ex: Supino reto, Prancha...">
+      <label class="field-label">Nome do exercício</label>
+      <input class="field-input" id="exName" maxlength="50" placeholder="Ex: Supino reto, Prancha…">
     </div>
 
     <div class="field">
@@ -1910,27 +2170,33 @@ button.settings-row:active { transform: scale(.985); }
       </div>
     </div>
 
+    <div class="section-divider">Volume</div>
+
     <div class="field">
       <label class="field-label">Séries</label>
-      <input class="field-input" id="exSets" type="number" min="1" max="20" value="3">
+      <div class="stepper">
+        <button class="stepper-btn" type="button" onclick="stepperBump('exSets', -1, 1, 20)" aria-label="Diminuir">−</button>
+        <input class="stepper-input" id="exSets" type="number" min="1" max="20" value="3" inputmode="numeric">
+        <button class="stepper-btn" type="button" onclick="stepperBump('exSets', 1, 1, 20)" aria-label="Aumentar">+</button>
+      </div>
     </div>
 
     <div id="exRepsFields">
       <div class="row-2">
         <div class="field">
-          <label class="field-label">Reps (padrão)</label>
-          <input class="field-input" id="exReps" placeholder="12">
+          <label class="field-label">Reps padrão</label>
+          <input class="field-input" id="exReps" inputmode="numeric" placeholder="12">
         </div>
         <div class="field">
-          <label class="field-label">Peso kg (padrão)</label>
-          <input class="field-input" id="exWeight" inputmode="decimal" placeholder="— (opcional)">
+          <label class="field-label">Peso (kg)</label>
+          <input class="field-input" id="exWeight" inputmode="decimal" placeholder="Opcional">
         </div>
       </div>
       <div class="field">
-        <label class="field-label">Usa carga?</label>
+        <label class="field-label">Carga</label>
         <div class="segmented" id="exTrackWeight">
-          <div class="seg" data-val="true">Sim (peso)</div>
-          <div class="seg" data-val="false">Não (peso corporal)</div>
+          <div class="seg" data-val="true">Com peso</div>
+          <div class="seg" data-val="false">Peso corporal</div>
         </div>
       </div>
     </div>
@@ -1939,7 +2205,7 @@ button.settings-row:active { transform: scale(.985); }
       <div class="row-2">
         <div class="field">
           <label class="field-label">Duração</label>
-          <input class="field-input" id="exDuration" type="number" min="5" max="3600" value="30">
+          <input class="field-input" id="exDuration" type="number" min="5" max="3600" value="30" inputmode="numeric">
         </div>
         <div class="field">
           <label class="field-label">Unidade</label>
@@ -1951,25 +2217,29 @@ button.settings-row:active { transform: scale(.985); }
       </div>
     </div>
 
-    <div class="field">
-      <label class="field-label">Descanso entre séries (segundos)</label>
-      <input class="field-input" id="exRest" type="number" min="0" max="600" value="90">
-    </div>
+    <div class="section-divider">Descanso</div>
 
     <div class="field">
-      <label class="field-label">Descrição (como fazer)</label>
-      <textarea class="field-textarea" id="exDesc" maxlength="1000"
-        placeholder="Ex: 1. Posicione os pés à largura dos ombros&#10;2. Desça até os joelhos formarem 90°&#10;3. Suba contraindo o glúteo&#10;• Respire soltando na subida"></textarea>
+      <label class="field-label">Tempo entre séries</label>
+      <div class="stepper">
+        <button class="stepper-btn" type="button" onclick="stepperBump('exRest', -15, 0, 600)" aria-label="Diminuir">−</button>
+        <input class="stepper-input" id="exRest" type="number" min="0" max="600" value="90" inputmode="numeric">
+        <span class="stepper-suffix">seg</span>
+        <button class="stepper-btn" type="button" onclick="stepperBump('exRest', 15, 0, 600)" aria-label="Aumentar">+</button>
+      </div>
     </div>
 
-    <div class="field">
-      <label class="field-label">Fotos, GIFs ou vídeos (até 3)</label>
-      <label class="img-upload">
-        <input type="file" id="exImgInput" accept="image/*,video/mp4,video/webm,video/quicktime,video/*" multiple>
-        <span>📷  Adicionar foto, GIF ou vídeo</span>
-      </label>
-      <div class="img-previews" id="exImgPreviews"></div>
-    </div>
+    <div class="section-divider">Mídia de referência</div>
+
+    <label class="media-upload-card">
+      <input type="file" id="exImgInput" accept="image/*,video/mp4,video/webm,video/quicktime,video/*" multiple>
+      <div class="media-upload-icon-box">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      </div>
+      <div class="media-upload-text">Adicionar foto ou vídeo</div>
+      <div class="media-upload-hint">Até 3 itens · JPG, PNG, GIF, MP4</div>
+    </label>
+    <div class="img-previews" id="exImgPreviews"></div>
 
     <div class="modal-actions">
       <button class="btn-ghost" id="exCancel">Cancelar</button>
@@ -3178,7 +3448,7 @@ function renderExerciseCard(w, ex, idx){
   const isTime = ex.type === 'time';
   const n = Math.max(1, ex.sets || 1);
   const doneAll = allSetsDone(w.id, ex, n);
-  const hasInfo = (ex.description && ex.description.trim()) || (ex.media && ex.media.length > 0);
+  const hasInfo = ex.media && ex.media.length > 0;
 
   const headRow = isTime
     ? `<div class="sets-head time-mode"><div>Série</div><div>Duração</div><div>▶</div><div>✓</div></div>`
@@ -3232,7 +3502,6 @@ function renderExerciseCard(w, ex, idx){
 
   const instrBlock = hasInfo ? `
     <div class="instructions-body">
-      ${ex.description ? `<div class="instr-label">Descrição</div><div class="instr-desc">${escapeHtml(ex.description)}</div>` : ''}
       ${ex.media && ex.media.length ? `
         <div class="instr-label">Mídia de referência</div>
         <div class="ex-images">
@@ -3314,22 +3583,54 @@ function closeShop(){
 }
 function renderShop(){
   document.getElementById('shopCoinsDisplay').textContent = state.coins;
+  document.getElementById('shopCoinsLabel').textContent = state.coins === 1 ? 'moeda' : 'moedas';
   const list = document.getElementById('shopItemsList');
+  const sectionLabel = document.getElementById('shopSectionLabel');
   if (state.shop.length === 0){
-    list.innerHTML = '<div class="shop-empty">Nenhum produto cadastrado ainda.</div>';
+    sectionLabel.style.display = 'none';
+    list.innerHTML = `
+      <div class="shop-empty">
+        <div class="shop-empty-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+        </div>
+        <div class="shop-empty-title">Nenhuma recompensa ainda</div>
+        <div class="shop-empty-sub">Adicione produtos para resgatar com suas moedas conquistadas.</div>
+      </div>`;
   } else {
-    list.innerHTML = state.shop.map(item => `
-      <div class="shop-item" data-id="${item.id}">
-        <div class="shop-item-info">
-          <div class="shop-item-name">${escapeHtml(item.name)}</div>
-          <div class="shop-item-cost">${item.cost} moeda${item.cost !== 1 ? 's' : ''}</div>
+    sectionLabel.style.display = '';
+    list.innerHTML = state.shop.map(item => {
+      const canAfford = state.coins >= item.cost;
+      const missing = item.cost - state.coins;
+      return `
+      <div class="shop-card ${canAfford ? 'affordable' : 'locked'}">
+        <div class="shop-card-info">
+          <div class="shop-card-name">${escapeHtml(item.name)}</div>
+          <div class="shop-card-cost">
+            <span class="shop-card-coin">M</span>
+            <span>${item.cost} ${item.cost === 1 ? 'moeda' : 'moedas'}</span>
+            ${canAfford ? '' : `<span class="shop-card-locked-msg">· faltam ${missing}</span>`}
+          </div>
         </div>
-        <div class="shop-item-actions">
-          <button class="shop-redeem-btn" onclick="redeemItem('${item.id}')" ${state.coins < item.cost ? 'disabled' : ''}>Resgatar</button>
-          <button class="shop-delete-btn" onclick="deleteShopItem('${item.id}')" title="Remover">×</button>
+        <div class="shop-card-actions">
+          <button class="shop-delete-btn" onclick="deleteShopItem('${item.id}')" title="Remover">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          </button>
+          <button class="shop-redeem-btn" onclick="redeemItem('${item.id}')" ${canAfford ? '' : 'disabled'}>Resgatar</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
+}
+
+function toggleShopAddForm(){
+  const wrap = document.getElementById('shopAddFormWrap');
+  const btn = document.getElementById('shopAddToggle');
+  const lbl = document.getElementById('shopAddToggleLabel');
+  const expanded = wrap.classList.toggle('expanded');
+  btn.classList.toggle('expanded', expanded);
+  lbl.textContent = expanded ? 'Cancelar' : 'Adicionar produto';
+  if (expanded) setTimeout(() => document.getElementById('shopItemName').focus(), 200);
+  else { document.getElementById('shopItemName').value = ''; document.getElementById('shopItemCost').value = ''; }
 }
 function redeemItem(id){
   const item = state.shop.find(i => i.id === id);
@@ -3355,7 +3656,14 @@ function addShopItem(){
   save();
   document.getElementById('shopItemName').value = '';
   document.getElementById('shopItemCost').value = '';
+  const wrap = document.getElementById('shopAddFormWrap');
+  const btn = document.getElementById('shopAddToggle');
+  const lbl = document.getElementById('shopAddToggleLabel');
+  wrap.classList.remove('expanded');
+  btn.classList.remove('expanded');
+  lbl.textContent = 'Adicionar produto';
   renderShop();
+  toast('Produto adicionado');
 }
 document.getElementById('shopAddBtn').onclick = addShopItem;
 document.getElementById('shopClose').onclick = closeShop;
@@ -3818,6 +4126,16 @@ document.getElementById('wkDelete').onclick = () => {
 };
 
 /* ===================== EXERCISE EDITOR ===================== */
+function stepperBump(inputId, delta, min, max){
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  let v = parseInt(input.value, 10);
+  if (isNaN(v)) v = 0;
+  v = Math.max(min ?? -Infinity, Math.min(max ?? Infinity, v + delta));
+  input.value = v;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 function openExerciseEditor(wId, exId){
   const w = getWorkout(wId);
   if (!w) return;
@@ -3839,7 +4157,6 @@ function openExerciseEditor(wId, exId){
   document.getElementById('exSets').value = d.sets;
   document.getElementById('exReps').value = d.reps || '';
   document.getElementById('exWeight').value = d.weight || '';
-  document.getElementById('exDesc').value = d.description || '';
 
   document.querySelectorAll('#exType .seg').forEach(s => {
     s.classList.toggle('active', s.dataset.val === d.type);
@@ -4033,7 +4350,6 @@ document.getElementById('exSave').onclick = () => {
   const rest = Math.max(0, +document.getElementById('exRest').value || 0);
   let duration = +document.getElementById('exDuration').value || 30;
   if (e.getUnit() === 'm') duration = duration * 60;
-  const description = document.getElementById('exDesc').value.trim();
 
   const media = (data.media || []).map(m => ({ id: m.id, mime: m.mime }));
   const patch = {
@@ -4041,7 +4357,6 @@ document.getElementById('exSave').onclick = () => {
     trackWeight: data.trackWeight,
     type: data.type,
     duration, rest,
-    description,
     media
   };
   if (e.id) updateExercise(e.workoutId, e.id, patch);
