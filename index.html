@@ -435,18 +435,35 @@ button.stat:hover { border-color: var(--border); }
 .workout-card-wrap {
   position: relative; overflow: hidden;
   border-radius: 16px;
+  background: var(--surface-2);
 }
 .workout-card-del-btn {
-  position: absolute; right: 0; top: 0; bottom: 0;
-  width: 88px;
+  position: absolute;
+  right: 6px; top: 6px; bottom: 6px;
+  width: 76px;
   background: var(--danger);
   color: #fff;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  font-size: 12px; font-weight: 600; letter-spacing: -.005em;
-  cursor: pointer;
-  user-select: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px;
+  font-size: 11px; font-weight: 600; letter-spacing: -.01em;
+  border-radius: 12px;
+  cursor: pointer; user-select: none;
+  box-shadow: 0 6px 16px color-mix(in oklab, var(--danger) 30%, transparent),
+              0 1px 2px rgba(0,0,0,.18);
+  transition: transform .14s ease, background .14s ease, box-shadow .14s ease;
+  opacity: 0; transform: scale(.92);
 }
-.workout-card-del-btn svg { flex-shrink: 0; }
+.workout-card-wrap.revealing .workout-card-del-btn,
+.workout-card-wrap.revealed .workout-card-del-btn {
+  opacity: 1; transform: scale(1);
+}
+.workout-card-del-btn:active {
+  transform: scale(.94);
+  background: color-mix(in oklab, var(--danger) 85%, #000);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--danger) 25%, transparent);
+}
+.workout-card-del-btn svg { flex-shrink: 0; opacity: .98; }
+.workout-card-del-btn span { line-height: 1; }
 .workout-card {
   will-change: transform;
   touch-action: pan-y;
@@ -2660,9 +2677,11 @@ let _swipedCard = null;
 
 function closeSwipedCard(){
   if (!_swipedCard) return;
-  _swipedCard.style.transition = 'transform .28s cubic-bezier(.3,1,.5,1)';
+  _swipedCard.style.transition = 'transform .32s cubic-bezier(.22,.9,.32,1)';
   _swipedCard.style.transform = 'translateX(0)';
   _swipedCard.classList.remove('swiped');
+  const wrap = _swipedCard.parentElement;
+  if (wrap) wrap.classList.remove('revealed', 'revealing');
   _swipedCard = null;
 }
 
@@ -2674,7 +2693,7 @@ function swipeDeleteWorkout(id){
 }
 
 function attachSwipeDelete(){
-  const REVEAL = 88, THRESHOLD = 44;
+  const REVEAL = 92, THRESHOLD = 46;
   document.querySelectorAll('.workout-card-wrap').forEach(wrap => {
     const card = wrap.querySelector('.workout-card');
     let startX = 0, startY = 0, moved = 0, dragging = false;
@@ -2695,17 +2714,22 @@ function attachSwipeDelete(){
       dragging = true;
       moved = Math.min(0, Math.max(-REVEAL, card.classList.contains('swiped') ? dx - REVEAL : dx));
       card.style.transform = `translateX(${moved}px)`;
+      if (moved < -8) wrap.classList.add('revealing');
+      else wrap.classList.remove('revealing');
     }, { passive: true });
 
     card.addEventListener('touchend', () => {
-      card.style.transition = 'transform .28s cubic-bezier(.3,1,.5,1)';
+      card.style.transition = 'transform .34s cubic-bezier(.22,.9,.32,1)';
+      wrap.classList.remove('revealing');
       if (moved < -THRESHOLD) {
         card.style.transform = `translateX(-${REVEAL}px)`;
         card.classList.add('swiped');
+        wrap.classList.add('revealed');
         _swipedCard = card;
       } else {
         card.style.transform = 'translateX(0)';
         card.classList.remove('swiped');
+        wrap.classList.remove('revealed');
         if (_swipedCard === card) _swipedCard = null;
       }
       dragging = false;
@@ -3090,8 +3114,8 @@ function renderWorkoutsList(){
     return `
       <div class="workout-card-wrap">
         <div class="workout-card-del-btn" onclick="swipeDeleteWorkout('${w.id}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-          Excluir
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          <span>Excluir</span>
         </div>
         <button class="workout-card ${isToday?'today-card':''}"
           style="--wc:${c.hex}; --wc-soft: color-mix(in oklab, ${c.hex} 16%, transparent); --wbg: color-mix(in oklab, ${c.hex} 16%, transparent);"
