@@ -1361,8 +1361,14 @@ button.stat:hover { border-color: var(--border); }
   width: 100%; max-width: 520px;
   max-height: 88vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
   box-shadow: 0 -20px 60px rgba(0,0,0,.5);
   animation: slideUp .3s cubic-bezier(.3,1.2,.5,1);
+}
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
 }
 @keyframes slideUp { from { transform: translateY(100%);} to {transform:none;} }
 .modal-handle {
@@ -5352,6 +5358,27 @@ document.getElementById('profEditDelete').onclick = async () => {
       if (document.visibilityState === 'visible' && _swReg) _swReg.update().catch(() => {});
     });
   }
+})();
+
+/* ===================== SCROLL LOCK (modal open) ===================== */
+(function(){
+  let _savedY = 0;
+  function lock(){
+    if(document.body.classList.contains('modal-open')) return;
+    _savedY = window.scrollY;
+    document.body.style.top = `-${_savedY}px`;
+    document.body.classList.add('modal-open');
+  }
+  function unlock(){
+    if(!document.body.classList.contains('modal-open')) return;
+    document.body.classList.remove('modal-open');
+    document.body.style.top = '';
+    window.scrollTo(0, _savedY);
+  }
+  new MutationObserver(() => {
+    const anyOpen = !!document.querySelector('.modal-bg.show');
+    anyOpen ? lock() : unlock();
+  }).observe(document.body, { subtree: true, attributeFilter: ['class'] });
 })();
 
 /* ===================== CUSTOM CONFIRM ===================== */
