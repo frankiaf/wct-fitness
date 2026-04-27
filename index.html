@@ -2011,7 +2011,11 @@ button.settings-row:active { background: var(--surface-3); }
       </div>
       <div class="auth-field">
         <label>Senha</label>
-        <input type="password" id="authPassSu" placeholder="••••••••" autocomplete="new-password">
+        <input type="password" id="authPassSu" placeholder="Mín. 6 caracteres" autocomplete="new-password" minlength="6">
+      </div>
+      <div class="auth-field">
+        <label>Confirmar senha</label>
+        <input type="password" id="authPassSuConfirm" placeholder="Repita a senha" autocomplete="new-password" minlength="6">
       </div>
       <p class="auth-error" id="authErrorSu"></p>
       <button class="auth-submit" id="authSignupBtn" onclick="doSignup()">Criar conta</button>
@@ -2165,7 +2169,7 @@ button.settings-row:active { background: var(--surface-3); }
       <div class="shop-add-form">
         <input class="field-input" id="shopItemName" placeholder="Nome (ex: Hambúrguer)" maxlength="40">
         <div class="shop-add-form-row">
-          <input class="field-input" id="shopItemCost" type="number" min="1" placeholder="Custo em moedas">
+          <input class="field-input" id="shopItemCost" type="number" min="1" max="999999" placeholder="Custo em moedas">
           <button class="btn-primary" id="shopAddBtn">Salvar</button>
         </div>
       </div>
@@ -2384,7 +2388,7 @@ button.settings-row:active { background: var(--surface-3); }
     <div class="modal-sub">Adicione um novo valor para esta medida.</div>
     <div class="field">
       <label class="field-label">Valor (<span id="singleMeasureUnit">cm</span>)</label>
-      <input class="field-input" id="singleMeasureInput" type="number" step="0.1" inputmode="decimal" placeholder="Ex: 35.5">
+      <input class="field-input" id="singleMeasureInput" type="number" step="0.1" min="0.1" max="1000" inputmode="decimal" placeholder="Ex: 35.5">
     </div>
     <div class="field">
       <label class="field-label">Data</label>
@@ -2592,32 +2596,54 @@ async function sbSync() {
   } catch(e) { console.warn('[SB] sync exception:', e); }
 }
 
+// Defensive coercers — never trust shape/type coming from the DB.
+function _sbNum(v, def = 0){ const n = Number(v); return Number.isFinite(n) ? n : def; }
+function _sbStr(v, def = ''){ return typeof v === 'string' ? v : def; }
+function _sbObj(v, def){ return (v && typeof v === 'object' && !Array.isArray(v)) ? v : def; }
+function _sbArr(v, def){ return Array.isArray(v) ? v : def; }
+
 async function sbLoad() {
   if (!_sbUser) return;
   try {
     const { data, error } = await _sb.from('wct_user_data')
       .select('*').eq('user_id', _sbUser.id).single();
     if (error || !data) { await sbSync(); return; }
-    if (data.profiles && data.profiles.length > 0) state.profiles = data.profiles;
-    if (data.active_profile_id) state.activeProfileId = data.active_profile_id;
-    if (data.total != null) state.total = data.total;
-    if (data.streak != null) state.streak = data.streak;
-    if (data.streak_date) state.streakDate = data.streak_date;
-    if (data.week) state.week = data.week;
-    if (data.session) state.session = data.session;
-    if (data.coins != null) state.coins = data.coins;
-    if (data.shop) state.shop = data.shop;
-    if (data.purchases) state.purchases = data.purchases;
-    if (data.rank_points != null) state.rankPoints = data.rank_points;
-    if (data.last_decay_check) state.lastDecayCheck = data.last_decay_check;
-    if (data.last_coin_date) state.lastCoinDate = data.last_coin_date;
-    if (data.display_name != null) state.displayName = data.display_name;
-    if (data.theme && (data.theme === 'dark' || data.theme === 'light')) {
-      state.theme = data.theme;
-      applyTheme(data.theme);
+
+    // Decide whether server is newer than the last local change.
+    const localUpdated  = +(localStorage.getItem('wct_updated_at') || 0);
+    const serverUpdated = data.updated_at ? +new Date(data.updated_at) : 0;
+    const serverNewer   = serverUpdated > localUpdated;
+
+    // Monotonic counters: take the max so offline progress is never lost.
+    state.total      = Math.max(_sbNum(state.total),      _sbNum(data.total));
+    state.coins      = Math.max(_sbNum(state.coins),      _sbNum(data.coins));
+    state.rankPoints = Math.max(_sbNum(state.rankPoints), _sbNum(data.rank_points));
+    state.streak     = Math.max(_sbNum(state.streak),     _sbNum(data.streak));
+
+    // Complex/replaceable state: server wins only when its snapshot is newer.
+    if (serverNewer){
+      const serverProfiles = _sbArr(data.profiles, []);
+      if (serverProfiles.length > 0) state.profiles = serverProfiles;
+      const serverActive = _sbStr(data.active_profile_id, '');
+      if (serverActive && state.profiles.some(p => p && p.id === serverActive)){
+        state.activeProfileId = serverActive;
+      }
+      state.streakDate     = _sbStr(data.streak_date,      state.streakDate);
+      state.week           = _sbObj(data.week,             state.week);
+      state.session        = _sbObj(data.session,          state.session);
+      state.shop           = _sbArr(data.shop,             state.shop);
+      state.purchases      = _sbArr(data.purchases,        state.purchases);
+      state.lastDecayCheck = _sbStr(data.last_decay_check, state.lastDecayCheck);
+      state.lastCoinDate   = _sbStr(data.last_coin_date,   state.lastCoinDate);
+      state.displayName    = _sbStr(data.display_name,     state.displayName);
+      if (data.theme === 'dark' || data.theme === 'light') {
+        state.theme = data.theme;
+        applyTheme(data.theme);
+      }
+      state.activity     = _sbObj(data.activity,     state.activity);
+      state.measurements = _sbObj(data.measurements, state.measurements);
     }
-    if (data.activity && typeof data.activity === 'object') state.activity = data.activity;
-    if (data.measurements && typeof data.measurements === 'object') state.measurements = data.measurements;
+
     saveRaw();
     await preloadAllMedia();
     renderHome();
@@ -2654,14 +2680,18 @@ async function doLogin() {
 }
 
 async function doSignup() {
-  const email = document.getElementById('authEmailSu').value.trim();
-  const pass  = document.getElementById('authPassSu').value;
+  const email   = document.getElementById('authEmailSu').value.trim();
+  const pass    = document.getElementById('authPassSu').value;
+  const confirm = document.getElementById('authPassSuConfirm').value;
+  const errEl   = document.getElementById('authErrorSu');
   if (!email || !pass) return;
+  if (pass.length < 6)   { errEl.textContent = 'Senha precisa ter no mínimo 6 caracteres.'; return; }
+  if (pass !== confirm)  { errEl.textContent = 'As senhas não coincidem.'; return; }
   const btn = document.getElementById('authSignupBtn');
   btn.disabled = true; btn.textContent = 'Criando...';
   const { data, error } = await _sb.auth.signUp({ email, password: pass });
   btn.disabled = false; btn.textContent = 'Criar conta';
-  if (error) { document.getElementById('authErrorSu').textContent = error.message; return; }
+  if (error) { errEl.textContent = error.message; return; }
   if (data.user && !data.user.email_confirmed_at) {
     document.getElementById('authErrorSu').textContent = 'Confirme seu email e entre novamente.';
   } else {
@@ -2869,6 +2899,8 @@ function saveRaw(){
     localStorage.setItem(LS.displayName, state.displayName || '');
     localStorage.setItem(LS.activity, JSON.stringify(state.activity));
     localStorage.setItem(LS.measurements, JSON.stringify(state.measurements));
+    // Tracks the local clock at write time so sbLoad can decide who is newer.
+    localStorage.setItem('wct_updated_at', String(Date.now()));
   } catch(e){
     if (e.name === 'QuotaExceededError'){
       toast('Armazenamento cheio — remova algumas imagens.', 'error');
@@ -2877,7 +2909,22 @@ function saveRaw(){
     }
   }
 }
-const save = () => { saveRaw(); sbSync(); };
+
+// Coalesce frequent saves (e.g. ticking off sets) into one network round-trip.
+let _sbSyncTimer = null;
+function _scheduleSbSync(){
+  if (_sbSyncTimer) clearTimeout(_sbSyncTimer);
+  _sbSyncTimer = setTimeout(() => { _sbSyncTimer = null; sbSync(); }, 1500);
+}
+function _flushSbSync(){
+  if (_sbSyncTimer){ clearTimeout(_sbSyncTimer); _sbSyncTimer = null; sbSync(); }
+}
+window.addEventListener('beforeunload', _flushSbSync);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') _flushSbSync();
+});
+
+const save = () => { saveRaw(); _scheduleSbSync(); };
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
@@ -3147,13 +3194,21 @@ function workoutCssVars(w){
   return `--wc: ${c.hex}; --wc-2: ${c.hex2}; --wc-soft: color-mix(in oklab, ${c.hex} 16%, transparent); --wbg: color-mix(in oklab, ${c.hex} 16%, transparent);`;
 }
 function todayDow(){ return new Date().getDay(); }
+// Local-time YYYY-MM-DD. Hoisted so it can be used by code defined earlier.
+function localISO(date = new Date()){
+  const d = new Date(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 function weekStartISO(date = new Date()){
   const d = new Date(date);
   const day = d.getDay();
   const diff = day === 0 ? 6 : day - 1;
   d.setDate(d.getDate() - diff);
   d.setHours(0,0,0,0);
-  return d.toISOString().slice(0,10);
+  return localISO(d);
 }
 function greetingFor(h){
   if (h < 5) return 'Boa madrugada';
@@ -3169,7 +3224,7 @@ function toast(msg, kind){
   state._toastTo = setTimeout(() => t.classList.remove('show'), 2000);
 }
 function escapeHtml(s){
-  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 }
 
 function checkWeekReset(){
@@ -3873,14 +3928,16 @@ function getRank(points){
   return               { name: 'Inativo',  color: '#EF4444' };
 }
 function applyRankDecay(){
-  const today = new Date().toISOString().slice(0,10);
+  const today = localISO();
   if (!state.lastDecayCheck){ state.lastDecayCheck = today; save(); return; }
   const daysSinceCheck    = Math.round((new Date(today) - new Date(state.lastDecayCheck)) / 86400000);
   if (daysSinceCheck <= 0) return;
   const lastTrained       = state.streakDate || today;
   const daysSinceTraining = Math.round((new Date(today) - new Date(lastTrained)) / 86400000);
   const decayDays         = Math.max(0, Math.min(daysSinceCheck, daysSinceTraining - 1));
-  if (decayDays > 0) state.rankPoints -= decayDays * 5;
+  if (decayDays > 0) state.rankPoints = Math.max(0, state.rankPoints - decayDays * 5);
+  // Reset streak display when the chain has been broken (more than 1 day since last training)
+  if (daysSinceTraining > 1) state.streak = 0;
   state.lastDecayCheck = today;
   save();
 }
@@ -4027,14 +4084,22 @@ function openShopItemEditor(id){
   lbl.textContent = 'Cancelar';
   setTimeout(() => document.getElementById('shopItemName').focus(), 200);
 }
+let _redeemingShopItem = false;
 function redeemItem(id){
-  const item = state.shop.find(i => i.id === id);
-  if (!item || state.coins < item.cost) return;
-  state.coins -= item.cost;
-  state.purchases.push({ id: uid(), itemId: id, itemName: item.name, cost: item.cost, date: new Date().toISOString() });
-  save(); renderShop();
-  document.getElementById('coinsVal').textContent = state.coins;
-  toast(`"${item.name}" resgatado!`);
+  // Prevent double-tap from spending twice before re-render disables the button.
+  if (_redeemingShopItem) return;
+  _redeemingShopItem = true;
+  try {
+    const item = state.shop.find(i => i.id === id);
+    if (!item || state.coins < item.cost) return;
+    state.coins -= item.cost;
+    state.purchases.push({ id: uid(), itemId: id, itemName: item.name, cost: item.cost, date: new Date().toISOString() });
+    save(); renderShop();
+    document.getElementById('coinsVal').textContent = state.coins;
+    toast(`"${item.name}" resgatado!`);
+  } finally {
+    setTimeout(() => { _redeemingShopItem = false; }, 500);
+  }
 }
 async function deleteShopItem(id){
   closeShopSwiped();
@@ -4043,10 +4108,14 @@ async function deleteShopItem(id){
   save(); renderShop();
 }
 function addShopItem(){
-  const name = document.getElementById('shopItemName').value.trim();
+  const rawName = document.getElementById('shopItemName').value.trim();
+  // Defense in depth — maxlength on the input is bypassable via DevTools.
+  const name = rawName.slice(0, 40);
   const cost = parseInt(document.getElementById('shopItemCost').value, 10);
   if (!name){ toast('Digite o nome do produto', 'error'); return; }
-  if (!cost || cost < 1){ toast('Custo mínimo é 1 moeda', 'error'); return; }
+  if (!Number.isFinite(cost) || cost < 1 || cost > 999999){
+    toast('Custo entre 1 e 999.999 moedas', 'error'); return;
+  }
   if (_editingShopId) {
     const item = state.shop.find(i => i.id === _editingShopId);
     if (item) { item.name = name; item.cost = cost; }
@@ -4127,7 +4196,7 @@ function fmtDate(dateISO){
   const d = new Date(dateISO + 'T00:00:00');
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+function todayISO(){ return localISO(); }
 
 /* Pick which measures to highlight on home card:
    peso always (if exists) + 2 with biggest |delta| relative to magnitude */
@@ -4333,7 +4402,8 @@ function saveNewMeasurement(){
     const v = input.value.trim();
     if (!v) return;
     const num = parseFloat(v);
-    if (isNaN(num)) return;
+    // Reject NaN, infinities, negatives and absurd values that would break charts.
+    if (!Number.isFinite(num) || num <= 0 || num > 1000) return;
     const key = input.dataset.mkey;
     if (!Array.isArray(state.measurements[key])) state.measurements[key] = [];
     // Replace if same date already exists, otherwise append
@@ -4466,7 +4536,7 @@ function saveSingleMeasure(){
   if (!v) { toast('Digite um valor', 'error'); return; }
   if (!date) { toast('Selecione uma data', 'error'); return; }
   const num = parseFloat(v);
-  if (isNaN(num)) { toast('Valor inválido', 'error'); return; }
+  if (!Number.isFinite(num) || num <= 0 || num > 1000) { toast('Valor inválido', 'error'); return; }
   const key = _activeMeasureKey;
   if (!Array.isArray(state.measurements[key])) state.measurements[key] = [];
   const arr = state.measurements[key];
@@ -4760,38 +4830,45 @@ function maybeCompleteWorkout(){
   });
   if (done < total) return;
 
-  const todayISO = new Date().toISOString().slice(0,10);
-  if (state.streakDate !== todayISO){
+  const today = localISO();
+  if (state.streakDate !== today){
     if (state.streakDate){
       const prev = new Date(state.streakDate);
-      const diff = Math.round((new Date(todayISO) - prev) / 86400000);
+      const diff = Math.round((new Date(today) - prev) / 86400000);
       state.streak = diff === 1 ? state.streak + 1 : 1;
     } else {
       state.streak = 1;
     }
-    state.streakDate = todayISO;
+    state.streakDate = today;
   }
   checkWeekReset();
   state.week.count += 1;
   state.total += 1;
   if (!state.activity) state.activity = {};
-  state.activity[todayISO] = (state.activity[todayISO] || 0) + 1;
-  state.lastDecayCheck = todayISO;
+  state.activity[today] = (state.activity[today] || 0) + 1;
+  state.lastDecayCheck = today;
 
-  // Moeda e rank só quando TODOS os treinos do dia estiverem concluídos
+  // Moeda e rank: se há treinos agendados para hoje, exigir todos completos.
+  // Se NÃO há nenhum agendado (só "Livres"), basta concluir o treino atual.
   const todayWorkouts = activeProfile().workouts.filter(tw => workoutDays(tw).includes(todayDow()));
-  const allDone = todayWorkouts.length > 0 && todayWorkouts.every(tw => {
-    let t = 0, d = 0;
-    tw.exercises.forEach(ex => {
-      const n = ex.sets || 1; t += n;
-      for (let i = 0; i < n; i++) if (getSet(tw.id, ex.id, i, ex).done) d++;
+  let allDone;
+  if (todayWorkouts.length > 0){
+    allDone = todayWorkouts.every(tw => {
+      let t = 0, d = 0;
+      tw.exercises.forEach(ex => {
+        const n = ex.sets || 1; t += n;
+        for (let i = 0; i < n; i++) if (getSet(tw.id, ex.id, i, ex).done) d++;
+      });
+      return t > 0 && d >= t;
     });
-    return t > 0 && d >= t;
-  });
-  if (allDone && state.lastCoinDate !== todayISO){
+  } else {
+    // Sem treinos do dia configurados — qualquer treino concluído conta.
+    allDone = true;
+  }
+  if (allDone && state.lastCoinDate !== today){
     state.coins += 1;
     state.rankPoints += 15;
-    state.lastCoinDate = todayISO;
+    state.lastCoinDate = today;
   }
   save();
 
@@ -4886,7 +4963,7 @@ document.getElementById('wkModalBg').addEventListener('click', (e) => {
   if (e.target.id === 'wkModalBg') closeWorkoutEditor();
 });
 document.getElementById('wkSave').onclick = () => {
-  const name = document.getElementById('wkName').value.trim();
+  const name = document.getElementById('wkName').value.trim().slice(0, 40);
   if (!name){ toast('Dê um nome ao treino', 'error'); return; }
   const data = {
     name,
@@ -5135,13 +5212,13 @@ document.getElementById('exImgInput').addEventListener('change', async (e) => {
 document.getElementById('exSave').onclick = () => {
   const e = state.editingExercise;
   const data = e.data;
-  const name = document.getElementById('exName').value.trim();
+  const name = document.getElementById('exName').value.trim().slice(0, 50);
   if (!name){ toast('Dê um nome ao exercício', 'error'); return; }
-  const sets = Math.max(1, +document.getElementById('exSets').value || 1);
-  const reps = document.getElementById('exReps').value.trim();
-  const weight = document.getElementById('exWeight').value.trim();
-  const rest = Math.max(0, +document.getElementById('exRest').value || 0);
-  let duration = +document.getElementById('exDuration').value || 30;
+  const sets = Math.min(20, Math.max(1, +document.getElementById('exSets').value || 1));
+  const reps = document.getElementById('exReps').value.trim().slice(0, 20);
+  const weight = document.getElementById('exWeight').value.trim().slice(0, 20);
+  const rest = Math.min(600, Math.max(0, +document.getElementById('exRest').value || 0));
+  let duration = Math.min(3600, Math.max(1, +document.getElementById('exDuration').value || 30));
   if (e.getUnit() === 'm') duration = duration * 60;
 
   const media = (data.media || []).map(m => ({ id: m.id, mime: m.mime }));
@@ -5222,7 +5299,7 @@ function renderProfileList(){
     const nW = p.workouts.length;
     return `
       <div class="profile-row ${isActive?'active':''}">
-        <div class="profile-row-icon">${p.icon}</div>
+        <div class="profile-row-icon">${escapeHtml(p.icon)}</div>
         <div class="profile-row-body">
           <div class="profile-row-title">${escapeHtml(p.name)}${isActive?' · ativo':''}</div>
           <div class="profile-row-sub">${nW} ${nW===1?'treino':'treinos'}</div>
@@ -5260,7 +5337,7 @@ document.getElementById('profEditBg').addEventListener('click', (e) => {
   if (e.target.id === 'profEditBg') closeProfileEditor();
 });
 document.getElementById('profEditSave').onclick = () => {
-  const name = document.getElementById('profName').value.trim();
+  const name = document.getElementById('profName').value.trim().slice(0, 30);
   if (!name){ toast('Dê um nome ao perfil', 'error'); return; }
   if (state.editingProfile.id){
     updateProfile(state.editingProfile.id, { name, icon: state.editingProfile.icon });
@@ -5293,11 +5370,12 @@ document.getElementById('profEditDelete').onclick = async () => {
   } catch(e){
     console.error('init error', e);
   }
-  applyRankDecay();
   renderHome();
 
-  // Restaura sessão Supabase (se usuário já tinha logado antes)
-  _sb.auth.getSession().then(async ({ data }) => {
+  // Restaura sessão Supabase, depois aplica decay sobre o estado já mesclado.
+  // (Antes a decay rodava com estado local cru e era sobrescrita pelo sbLoad.)
+  try {
+    const { data } = await _sb.auth.getSession();
     if (data?.session?.user) {
       _sbUser = data.session.user;
       updateAuthBtn();
@@ -5305,7 +5383,10 @@ document.getElementById('profEditDelete').onclick = async () => {
     } else {
       showAuthModal();
     }
-  });
+  } catch(e) { console.warn('[SB] getSession:', e); }
+
+  applyRankDecay();
+  renderHome();
 
   _sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_IN' && session) {
@@ -5349,6 +5430,11 @@ document.getElementById('profEditDelete').onclick = async () => {
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (_refreshing) return;
+      // Mid-workout reloads would lose the rest timer / countdown (kept in memory).
+      // Defer the reload: just show the update banner so the user picks the moment.
+      const inWorkout = document.getElementById('workoutView')?.classList.contains('active');
+      const restRunning = !!(state && (state.rest || state.countdown));
+      if (inWorkout || restRunning) { showUpdateBanner(); return; }
       _refreshing = true;
       window.location.reload();
     });

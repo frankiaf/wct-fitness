@@ -28,8 +28,12 @@ self.addEventListener('fetch', e => {
     e.respondWith(
       fetch(req)
         .then(res => {
-          const copy = res.clone();
-          caches.open(VERSION).then(c => c.put(req, copy)).catch(() => {});
+          // Only cache successful responses; otherwise an error page
+          // would become the offline fallback.
+          if (res && res.ok && res.type !== 'opaque') {
+            const copy = res.clone();
+            caches.open(VERSION).then(c => c.put(req, copy)).catch(() => {});
+          }
           return res;
         })
         .catch(() => caches.match(req).then(r => r || caches.match('./index.html')))
