@@ -257,6 +257,36 @@ input, textarea, select, [contenteditable="true"] {
 .hero-empty { background: #1a1a1c; }
 [data-theme="light"] .hero-empty { background: #1D1D1F; }
 
+/* Hero carousel */
+.hero-carousel-wrap { margin-bottom: 28px; }
+.hero-carousel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hero-carousel::-webkit-scrollbar { display: none; }
+.hero-slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+.hero-slide .hero { margin-bottom: 0; }
+.hero-dots {
+  display: flex; gap: 6px; justify-content: center;
+  margin-top: 12px;
+}
+.hero-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-3); opacity: .35;
+  transition: opacity .2s, transform .2s, background .2s;
+}
+.hero-dot.active { opacity: 1; background: var(--text); transform: scale(1.4); }
+
 /* Section titles */
 .section-title {
   font-size: 20px; font-weight: 600;
@@ -278,7 +308,24 @@ input, textarea, select, [contenteditable="true"] {
   padding: 16px;
   margin-bottom: 20px;
   box-shadow: var(--shadow-card);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
+.activity-card.collapsed .activity-month-nav .activity-nav-btn { display: none; }
+.activity-toggle-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  height: 18px;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1;
+  pointer-events: none;
+  transition: transform .25s ease, color .15s;
+}
+.activity-card:not(.collapsed) .activity-toggle-hint { transform: rotate(180deg); }
 .activity-header {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 16px;
@@ -2100,7 +2147,7 @@ button.settings-row:active { background: var(--surface-3); }
 
     <!-- Activity calendar -->
     <div class="section-title">Atividade</div>
-    <div class="activity-card">
+    <div class="activity-card collapsed" id="activityCard" onclick="onActivityCardClick(event)">
       <div class="activity-header">
         <div class="activity-count" id="activityCount">0 treinos</div>
         <div class="activity-month-nav">
@@ -2113,6 +2160,7 @@ button.settings-row:active { background: var(--surface-3); }
         <span>seg</span><span>ter</span><span>qua</span><span>qui</span><span>sex</span><span>sáb</span><span>dom</span>
       </div>
       <div class="activity-cells" id="activityCells"></div>
+      <div class="activity-toggle-hint" aria-hidden="true">▾</div>
     </div>
 
     <!-- Body measurements -->
@@ -3759,8 +3807,21 @@ document.getElementById('historyModalBg').addEventListener('click', e => {
 /* ===================== RENDER ACTIVITY CALENDAR ===================== */
 const MONTHS_PT_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 let _activityOffset = 0;
+let _activityExpanded = false;
+
+function onActivityCardClick(ev){
+  if (ev.target.closest('.activity-cell, .activity-nav-btn, button')) return;
+  toggleActivityExpanded();
+}
+
+function toggleActivityExpanded(){
+  _activityExpanded = !_activityExpanded;
+  if (!_activityExpanded) _activityOffset = 0;
+  renderActivity();
+}
 
 function shiftActivityMonth(delta){
+  if (!_activityExpanded) return;
   const now = new Date();
   const newOffset = _activityOffset + delta;
   const target = new Date(now.getFullYear(), now.getMonth() + newOffset, 1);
@@ -3771,6 +3832,67 @@ function shiftActivityMonth(delta){
 
 function renderActivity(){
   const now = new Date(); now.setHours(0,0,0,0);
+  const card = document.getElementById('activityCard');
+  if (card) card.classList.toggle('collapsed', !_activityExpanded);
+  if (_activityExpanded) renderActivityMonth(now);
+  else renderActivityWeek(now);
+}
+
+function _activityPad(n){ return String(n).padStart(2, '0'); }
+function _activityIso(d){ return `${d.getFullYear()}-${_activityPad(d.getMonth()+1)}-${_activityPad(d.getDate())}`; }
+
+function renderActivityWeek(now){
+  const mondayBased = (now.getDay() + 6) % 7;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - mondayBased);
+
+  const activity = state.activity || {};
+  const days = [];
+  let weekCount = 0;
+  for (let i = 0; i < 7; i++){
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    days.push(d);
+    weekCount += +activity[_activityIso(d)] || 0;
+  }
+
+  const countEl = document.getElementById('activityCount');
+  const monthLabelEl = document.getElementById('activityMonthLabel');
+  if (countEl) countEl.textContent = `${weekCount} treino${weekCount === 1 ? '' : 's'}`;
+  if (monthLabelEl) monthLabelEl.textContent = `${MONTHS_PT_FULL[now.getMonth()]} ${now.getFullYear()}`;
+
+  const cellsEl = document.getElementById('activityCells');
+  if (!cellsEl) return;
+  cellsEl.innerHTML = '';
+
+  for (const d of days){
+    const iso = _activityIso(d);
+    const count = +activity[iso] || 0;
+    const cell = document.createElement('div');
+    cell.className = 'activity-cell';
+    cell.dataset.dow = d.getDay();
+    cell.textContent = d.getDate();
+    if (d.getTime() > now.getTime()){
+      cell.classList.add('future');
+    } else {
+      const cellDow = d.getDay();
+      cell.onclick = () => {
+        document.querySelectorAll('.activity-cell.selected').forEach(el => el.classList.remove('selected'));
+        cell.classList.add('selected');
+        renderHeroForDay(cellDow);
+      };
+    }
+    if (count > 0){
+      const lvl = count >= 4 ? 4 : count >= 3 ? 3 : count >= 2 ? 2 : 1;
+      cell.classList.add('l' + lvl);
+    }
+    if (d.getTime() === now.getTime()) cell.classList.add('today', 'selected');
+    cell.title = `${iso}: ${count} treino${count === 1 ? '' : 's'}`;
+    cellsEl.appendChild(cell);
+  }
+}
+
+function renderActivityMonth(now){
   const ref = new Date(now.getFullYear(), now.getMonth() + _activityOffset, 1);
   const year = ref.getFullYear();
   const month = ref.getMonth();
@@ -3780,8 +3902,7 @@ function renderActivity(){
   const leadingBlanks = (firstDow + 6) % 7;
 
   const activity = state.activity || {};
-  const pad = n => String(n).padStart(2, '0');
-  const isoFor = day => `${year}-${pad(month + 1)}-${pad(day)}`;
+  const isoFor = day => `${year}-${_activityPad(month + 1)}-${_activityPad(day)}`;
 
   let monthCount = 0;
   for (let d = 1; d <= daysInMonth; d++){
@@ -3831,20 +3952,16 @@ function renderActivity(){
 }
 
 /* ===================== RENDER HERO FOR DAY ===================== */
-function renderHeroForDay(dow){
+const HERO_DOW_ORDER = [1, 2, 3, 4, 5, 6, 0]; // seg..dom (matches activity calendar order)
+
+function buildHeroSlideHTML(dow){
   const p = activeProfile();
   const workouts = p.workouts.filter(w => workoutDays(w).includes(dow));
-  const heroSlot = document.getElementById('heroSlot');
   const isToday = dow === todayDow();
   const dayLabel = isToday ? 'hoje' : DAYS[dow];
 
-  // highlight selected day in week bar
-  document.querySelectorAll('.week-day').forEach(el => el.classList.remove('selected'));
-  const dayBtns = document.querySelectorAll('.week-day');
-  dayBtns.forEach(el => { if (Number(el.dataset.dow) === dow) el.classList.add('selected'); });
-
   if (p.workouts.length === 0){
-    heroSlot.innerHTML = `
+    return `
       <div class="hero hero-empty">
         <div class="hero-eyebrow"><span class="dot"></span>Perfil "${escapeHtml(p.name)}" sem treinos</div>
         <div class="hero-title">Monte seu plano</div>
@@ -3855,54 +3972,9 @@ function renderHeroForDay(dow){
         </div>
         <button class="hero-cta" onclick="openWorkoutEditor()">+ Criar treino</button>
       </div>`;
-  } else if (workouts.length > 0){
-    _todaysWorkouts = workouts;
-    const c = colorOf(workouts[0].color);
-    if (workouts.length === 1){
-      const w = workouts[0];
-      const nEx = w.exercises.length;
-      const nSets = w.exercises.reduce((a,e) => a + (e.sets || 0), 0);
-      const estMin = estimateMinutes(w);
-      heroSlot.innerHTML = `
-        <div class="hero" style="--hero-end: ${c.hex};">
-          <div class="hero-eyebrow"><span class="dot"></span>Treino de ${dayLabel} · ${escapeHtml(p.name)}</div>
-          <div class="hero-title">${escapeHtml(w.name)}</div>
-          <div class="hero-sub">${nEx} ${nEx === 1 ? 'exercício' : 'exercícios'} · ${nSets} séries</div>
-          <div class="hero-meta">
-            <span>⏱ ~${estMin} min</span>
-            <span>${workoutDays(w).map(d => DAYS[d]).join(', ') || 'Livre'}</span>
-          </div>
-          <button class="hero-cta" onclick="startTodaySequence()">▶  Começar treino</button>
-        </div>`;
-    } else {
-      const totalEx = workouts.reduce((a, w) => a + w.exercises.length, 0);
-      const totalMin = workouts.reduce((a, w) => a + estimateMinutes(w), 0);
-      const listHTML = workouts.map((w, i) => {
-        const wc = colorOf(w.color);
-        const nEx = w.exercises.length;
-        const estMin = estimateMinutes(w);
-        return `
-          <button class="twi" onclick="openTodayWorkout(${i})" style="--tc:${wc.hex}">
-            <span class="twi-num">${i + 1}</span>
-            <div class="twi-info">
-              <div class="twi-name">${escapeHtml(w.name)}</div>
-              <div class="twi-meta">${nEx} ex · ~${estMin} min</div>
-            </div>
-            <span class="twi-play">▶</span>
-          </button>`;
-      }).join('');
-      heroSlot.innerHTML = `
-        <div class="hero" style="--hero-end: ${c.hex};">
-          <div class="hero-eyebrow"><span class="dot"></span>${workouts.length} treinos ${dayLabel} · ${escapeHtml(p.name)}</div>
-          <div class="hero-title">Dia<br>Pesado</div>
-          <div class="hero-sub">${totalEx} exercícios · ~${totalMin} min no total</div>
-          <div class="today-workout-list">${listHTML}</div>
-          <button class="hero-cta" onclick="startTodaySequence()">▶  Começar sequência</button>
-          <div class="today-hint">Toque num treino para fazer só ele</div>
-        </div>`;
-    }
-  } else {
-    heroSlot.innerHTML = `
+  }
+  if (workouts.length === 0){
+    return `
       <div class="hero hero-empty">
         <div class="hero-eyebrow"><span class="dot"></span>Sem treino ${dayLabel} · ${escapeHtml(p.name)}</div>
         <div class="hero-title">Dia de descanso</div>
@@ -3913,6 +3985,110 @@ function renderHeroForDay(dow){
         <button class="hero-cta" onclick="openWorkoutEditor(null, ${dow})">+ Criar treino</button>
       </div>`;
   }
+  const c = colorOf(workouts[0].color);
+  if (workouts.length === 1){
+    const w = workouts[0];
+    const nEx = w.exercises.length;
+    const nSets = w.exercises.reduce((a,e) => a + (e.sets || 0), 0);
+    const estMin = estimateMinutes(w);
+    return `
+      <div class="hero" style="--hero-end: ${c.hex};">
+        <div class="hero-eyebrow"><span class="dot"></span>Treino de ${dayLabel} · ${escapeHtml(p.name)}</div>
+        <div class="hero-title">${escapeHtml(w.name)}</div>
+        <div class="hero-sub">${nEx} ${nEx === 1 ? 'exercício' : 'exercícios'} · ${nSets} séries</div>
+        <div class="hero-meta">
+          <span>⏱ ~${estMin} min</span>
+          <span>${workoutDays(w).map(d => DAYS[d]).join(', ') || 'Livre'}</span>
+        </div>
+        <button class="hero-cta" onclick="startDaySequence(${dow})">▶  Começar treino</button>
+      </div>`;
+  }
+  const totalEx = workouts.reduce((a, w) => a + w.exercises.length, 0);
+  const totalMin = workouts.reduce((a, w) => a + estimateMinutes(w), 0);
+  const listHTML = workouts.map((w, i) => {
+    const wc = colorOf(w.color);
+    const nEx = w.exercises.length;
+    const estMin = estimateMinutes(w);
+    return `
+      <button class="twi" onclick="openDayWorkout(${dow}, ${i})" style="--tc:${wc.hex}">
+        <span class="twi-num">${i + 1}</span>
+        <div class="twi-info">
+          <div class="twi-name">${escapeHtml(w.name)}</div>
+          <div class="twi-meta">${nEx} ex · ~${estMin} min</div>
+        </div>
+        <span class="twi-play">▶</span>
+      </button>`;
+  }).join('');
+  return `
+    <div class="hero" style="--hero-end: ${c.hex};">
+      <div class="hero-eyebrow"><span class="dot"></span>${workouts.length} treinos ${dayLabel} · ${escapeHtml(p.name)}</div>
+      <div class="hero-title">Dia<br>Pesado</div>
+      <div class="hero-sub">${totalEx} exercícios · ~${totalMin} min no total</div>
+      <div class="today-workout-list">${listHTML}</div>
+      <button class="hero-cta" onclick="startDaySequence(${dow})">▶  Começar sequência</button>
+      <div class="today-hint">Toque num treino para fazer só ele</div>
+    </div>`;
+}
+
+function _heroSyncSelection(dow){
+  document.querySelectorAll('.hero-dot').forEach(d =>
+    d.classList.toggle('active', Number(d.dataset.dow) === dow));
+  if (typeof _activityExpanded !== 'undefined' && _activityExpanded) return;
+  document.querySelectorAll('.activity-cell.selected').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('.activity-cell[data-dow]').forEach(cell => {
+    if (Number(cell.dataset.dow) === dow) cell.classList.add('selected');
+  });
+}
+
+function renderHeroForDay(dow){
+  const heroSlot = document.getElementById('heroSlot');
+  if (!heroSlot) return;
+
+  const slidesHTML = HERO_DOW_ORDER.map(d =>
+    `<div class="hero-slide" data-dow="${d}">${buildHeroSlideHTML(d)}</div>`).join('');
+  const dotsHTML = HERO_DOW_ORDER.map(d =>
+    `<span class="hero-dot" data-dow="${d}"></span>`).join('');
+
+  heroSlot.innerHTML = `
+    <div class="hero-carousel-wrap">
+      <div class="hero-carousel" id="heroCarousel">${slidesHTML}</div>
+      <div class="hero-dots" id="heroDots">${dotsHTML}</div>
+    </div>`;
+
+  const carousel = document.getElementById('heroCarousel');
+  const idx = Math.max(0, HERO_DOW_ORDER.indexOf(dow));
+
+  requestAnimationFrame(() => {
+    const slide = carousel.children[idx];
+    if (slide) carousel.scrollLeft = slide.offsetLeft;
+    _heroSyncSelection(HERO_DOW_ORDER[idx]);
+  });
+
+  let scrollTimer = null;
+  carousel.addEventListener('scroll', () => {
+    if (scrollTimer) clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      const w = carousel.clientWidth;
+      if (!w) return;
+      const i = Math.round(carousel.scrollLeft / w);
+      const newDow = HERO_DOW_ORDER[i];
+      if (newDow !== undefined) _heroSyncSelection(newDow);
+    }, 90);
+  }, { passive: true });
+}
+
+function startDaySequence(dow){
+  const p = activeProfile();
+  const workouts = p.workouts.filter(w => workoutDays(w).includes(dow));
+  if (workouts.length === 0) return;
+  startWorkoutSequence(workouts.map(w => w.id));
+}
+function openDayWorkout(dow, idx){
+  const p = activeProfile();
+  const workouts = p.workouts.filter(w => workoutDays(w).includes(dow));
+  const w = workouts[idx];
+  if (!w) return;
+  startWorkoutSequence([w.id]);
 }
 
 /* ===================== RENDER HOME ===================== */
@@ -5876,6 +6052,58 @@ document.getElementById('profEditDelete').onclick = async () => {
     const anyOpen = !!document.querySelector('.modal-bg.show');
     anyOpen ? lock() : unlock();
   }).observe(document.body, { subtree: true, attributeFilter: ['class'] });
+})();
+
+/* ===================== HARDWARE BACK BUTTON ===================== */
+(function(){
+  function getOpenItems(){
+    const items = [];
+    document.querySelectorAll('.modal-bg.show').forEach(el => items.push({ type: 'modal', el }));
+    const activeView = document.querySelector('.view.active');
+    if (activeView && activeView.id !== 'homeView') items.push({ type: 'view', el: activeView });
+    return items;
+  }
+
+  let _depth = 0;
+  let _suppress = false;
+
+  history.replaceState({ rep: 'reps-root' }, '');
+
+  function syncDepth(){
+    if (_suppress) return;
+    const target = getOpenItems().length;
+    if (target === _depth) return;
+    _suppress = true;
+    if (target > _depth){
+      const toPush = target - _depth;
+      for (let i = 0; i < toPush; i++) history.pushState({ rep: 'reps-stack' }, '');
+    } else {
+      history.go(-(_depth - target));
+    }
+    _depth = target;
+    setTimeout(() => { _suppress = false; }, 0);
+  }
+
+  new MutationObserver(syncDepth)
+    .observe(document.body, { subtree: true, attributeFilter: ['class'] });
+
+  window.addEventListener('popstate', () => {
+    if (_suppress){ return; }
+    const items = getOpenItems();
+    if (items.length === 0){
+      history.replaceState({ rep: 'reps-root' }, '');
+      return;
+    }
+    _suppress = true;
+    const top = items[items.length - 1];
+    if (top.type === 'modal'){
+      top.el.classList.remove('show');
+    } else {
+      stopRest(); stopCountdown(); renderHome(); showView('homeView');
+    }
+    _depth = Math.max(0, _depth - 1);
+    setTimeout(() => { _suppress = false; }, 0);
+  });
 })();
 
 /* ===================== CUSTOM CONFIRM ===================== */
