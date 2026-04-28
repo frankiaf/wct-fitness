@@ -1100,8 +1100,6 @@ button.stat:hover { border-color: var(--border); }
 }
 .exercises.reordering .ex-head { cursor: grabbing; }
 body.reordering-ex { touch-action: none; }
-.ex-drag-handle { cursor: grab; touch-action: none; }
-.ex-drag-handle:active { cursor: grabbing; }
 .mini-btn {
   width: 32px; height: 32px; border-radius: 50%;
   background: var(--surface-2); color: var(--text-2);
@@ -4355,9 +4353,6 @@ function renderExerciseCard(w, ex, idx){
           <button class="mini-btn" onclick="event.stopPropagation();openHistory('${ex.id}')" aria-label="Histórico" title="Histórico">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="10"/></svg>
           </button>
-          <button class="mini-btn ex-drag-handle" type="button" aria-label="Reordenar" title="Arraste para reordenar" onclick="event.stopPropagation()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/></svg>
-          </button>
           <button class="mini-btn" onclick="event.stopPropagation();openExerciseEditor('${w.id}','${ex.id}')" aria-label="Editar">⋮</button>
         </div>
       </div>
@@ -4389,7 +4384,6 @@ function attachExerciseReorder(){
   let dragWId = null;
   let suppressClickUntil = 0;
   let usingTouch = false;
-  let viaHandle = false;
 
   function getCards(){
     return Array.from(list.querySelectorAll('.ex-card'));
@@ -4442,20 +4436,15 @@ function attachExerciseReorder(){
     if (!target || !target.closest) return true;
     return !!target.closest('input, textarea, .set-row, .ex-sets, .instructions-body, .ex-images, .media-wrap');
   }
-  function startPress(card, x, y, instant){
+  function startPress(card, x, y){
     cancelPress();
     pressCard = card;
     startX = x; startY = y;
     card.classList.add('drag-pressing');
-    if (instant){
+    pressTimer = setTimeout(() => {
       pressTimer = null;
       activateDrag();
-    } else {
-      pressTimer = setTimeout(() => {
-        pressTimer = null;
-        activateDrag();
-      }, LONG_PRESS_MS);
-    }
+    }, LONG_PRESS_MS);
   }
   function moveHandler(x, y, e){
     if (pressTimer){
@@ -4498,35 +4487,27 @@ function attachExerciseReorder(){
     }
   }
   function endHandler(){
-    if (pressTimer){ cancelPress(); viaHandle = false; return; }
+    if (pressTimer){ cancelPress(); return; }
     clearPressVisual();
-    viaHandle = false;
     if (!dragCard) return;
     endDrag(true);
   }
 
-  function pickCardFromEvent(target){
+  function pickCard(target){
     if (!target || !target.closest) return null;
-    const handle = target.closest('.ex-drag-handle');
-    if (handle){
-      viaHandle = true;
-      return { card: handle.closest('.ex-card'), instant: true };
-    }
     if (target.closest('button, .mini-btn')) return null;
     if (shouldIgnoreTarget(target)) return null;
-    const card = target.closest('.ex-card');
-    if (!card) return null;
-    return { card, instant: false };
+    return target.closest('.ex-card');
   }
 
   // Touch path
   list.addEventListener('touchstart', e => {
     if (e.touches.length !== 1) { cancelPress(); return; }
     const t = e.touches[0];
-    const picked = pickCardFromEvent(t.target);
-    if (!picked) return;
+    const card = pickCard(t.target);
+    if (!card) return;
     usingTouch = true;
-    startPress(picked.card, t.clientX, t.clientY, picked.instant);
+    startPress(card, t.clientX, t.clientY);
   }, { passive: true });
 
   document.addEventListener('touchmove', e => {
@@ -4548,9 +4529,9 @@ function attachExerciseReorder(){
   list.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
     if (usingTouch) return;
-    const picked = pickCardFromEvent(e.target);
-    if (!picked) return;
-    startPress(picked.card, e.clientX, e.clientY, picked.instant);
+    const card = pickCard(e.target);
+    if (!card) return;
+    startPress(card, e.clientX, e.clientY);
   });
   document.addEventListener('mousemove', e => {
     if (usingTouch) return;
