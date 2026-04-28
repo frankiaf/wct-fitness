@@ -1084,6 +1084,22 @@ button.stat:hover { border-color: var(--border); }
 .ex-badge.time { background: var(--primary-soft); color: var(--primary); border-color: transparent; }
 .ex-badge.has-info { background: var(--invert-bg); color: var(--invert-text); border-color: transparent; }
 .ex-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* Drag-to-reorder */
+.ex-card.dragging {
+  z-index: 50;
+  box-shadow: var(--shadow-float);
+  opacity: .98;
+  transition: box-shadow .18s, opacity .18s;
+  cursor: grabbing;
+}
+.ex-card.drag-pressing { transform: scale(.985); transition: transform .18s; }
+.exercises.reordering { touch-action: none; }
+.exercises.reordering .ex-card:not(.dragging) {
+  transition: transform .25s cubic-bezier(.22,.9,.32,1);
+}
+.exercises.reordering .ex-head { cursor: grabbing; }
+body.reordering-ex { touch-action: none; }
 .mini-btn {
   width: 32px; height: 32px; border-radius: 50%;
   background: var(--surface-2); color: var(--text-2);
@@ -3648,6 +3664,16 @@ function deleteExercise(wId, exId){
   }
   save();
 }
+function reorderExercise(wId, fromIdx, toIdx){
+  const w = getWorkout(wId);
+  if (!w) return;
+  if (fromIdx === toIdx) return;
+  if (fromIdx < 0 || fromIdx >= w.exercises.length) return;
+  if (toIdx < 0 || toIdx >= w.exercises.length) return;
+  const [moved] = w.exercises.splice(fromIdx, 1);
+  w.exercises.splice(toIdx, 0, moved);
+  save();
+}
 
 /* ===================== PROFILE CRUD ===================== */
 function createProfile(partial){
@@ -4238,6 +4264,7 @@ function renderExercises(){
   list.innerHTML = w.exercises.map((ex, idx) => renderExerciseCard(w, ex, idx)).join('') +
     `<button class="add-ex-btn" onclick="openExerciseEditor('${w.id}')">+ Adicionar exercício</button>`;
   updateProgress();
+  attachExerciseReorder();
 }
 
 function renderExerciseCard(w, ex, idx){
@@ -4339,6 +4366,150 @@ function renderExerciseCard(w, ex, idx){
         </div>
       </div>
     </div>`;
+}
+
+/* ===================== REORDER (long-press drag) ===================== */
+function attachExerciseReorder(){
+  const list = document.getElementById('exList');
+  if (!list || list._reorderBound) return;
+  list._reorderBound = true;
+
+  const LONG_PRESS_MS = 450;
+  const MOVE_TOLERANCE = 8;
+  let dragCard = null;
+  let pressCard = null;
+  let pressTimer = null;
+  let activePointerId = null;
+  let startX = 0, startY = 0, originY = 0;
+  let originalIdx = -1;
+  let dragWId = null;
+  let suppressClickUntil = 0;
+
+  function getCards(){
+    return Array.from(list.querySelectorAll('.ex-card'));
+  }
+  function clearPressVisual(){
+    if (pressCard){ pressCard.classList.remove('drag-pressing'); pressCard = null; }
+  }
+  function cancelPress(){
+    if (pressTimer){ clearTimeout(pressTimer); pressTimer = null; }
+    clearPressVisual();
+  }
+  function endDrag(commit){
+    if (!dragCard) return;
+    const card = dragCard;
+    const finalIdx = getCards().indexOf(card);
+    const fromIdx = originalIdx;
+    const wId = dragWId;
+    dragCard = null; originalIdx = -1; dragWId = null; activePointerId = null;
+    suppressClickUntil = Date.now() + 400;
+
+    card.style.transition = 'transform .22s cubic-bezier(.22,.9,.32,1)';
+    card.style.transform = '';
+    document.body.classList.remove('reordering-ex');
+    setTimeout(() => {
+      card.classList.remove('dragging');
+      card.style.transition = '';
+      list.classList.remove('reordering');
+      if (commit && fromIdx !== -1 && finalIdx !== -1 && fromIdx !== finalIdx && wId){
+        reorderExercise(wId, fromIdx, finalIdx);
+        renderExercises();
+      }
+    }, 220);
+  }
+  function activateDrag(e){
+    if (!pressCard) return;
+    const card = pressCard;
+    pressCard = null;
+    card.classList.remove('drag-pressing');
+    dragCard = card;
+    activePointerId = e.pointerId;
+    dragWId = state.currentWorkoutId;
+    originalIdx = getCards().indexOf(card);
+    list.classList.add('reordering');
+    document.body.classList.add('reordering-ex');
+    card.classList.add('dragging');
+    originY = startY;
+    try { card.setPointerCapture(e.pointerId); } catch(_){}
+    if (navigator.vibrate) { try { navigator.vibrate(15); } catch(_){} }
+  }
+
+  list.addEventListener('pointerdown', e => {
+    if (dragCard) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.target.closest('input, textarea, button, .mini-btn, .set-row, .ex-sets, .instructions-body, .ex-images, .media-wrap')) return;
+    const card = e.target.closest('.ex-card');
+    if (!card) return;
+    cancelPress();
+    pressCard = card;
+    startX = e.clientX; startY = e.clientY;
+    card.classList.add('drag-pressing');
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      activateDrag(e);
+    }, LONG_PRESS_MS);
+  });
+
+  list.addEventListener('pointermove', e => {
+    if (pressTimer){
+      if (Math.abs(e.clientX - startX) > MOVE_TOLERANCE || Math.abs(e.clientY - startY) > MOVE_TOLERANCE){
+        cancelPress();
+      }
+    }
+    if (!dragCard || e.pointerId !== activePointerId) return;
+    e.preventDefault();
+    let dy = e.clientY - originY;
+    dragCard.style.transform = `translateY(${dy}px) scale(1.02)`;
+
+    // swap downward while past next sibling's midpoint
+    while (true){
+      const cards = getCards();
+      const idx = cards.indexOf(dragCard);
+      const next = cards[idx + 1];
+      if (!next) break;
+      const dr = dragCard.getBoundingClientRect();
+      const nr = next.getBoundingClientRect();
+      if (dr.top + dr.height / 2 <= nr.top + nr.height / 2) break;
+      const nh = nr.height + 12; // +gap
+      list.insertBefore(next, dragCard);
+      originY += nh;
+      dy = e.clientY - originY;
+      dragCard.style.transform = `translateY(${dy}px) scale(1.02)`;
+    }
+    // swap upward while past previous sibling's midpoint
+    while (true){
+      const cards = getCards();
+      const idx = cards.indexOf(dragCard);
+      const prev = cards[idx - 1];
+      if (!prev) break;
+      const dr = dragCard.getBoundingClientRect();
+      const pr = prev.getBoundingClientRect();
+      if (dr.top + dr.height / 2 >= pr.top + pr.height / 2) break;
+      const ph = pr.height + 12;
+      list.insertBefore(dragCard, prev);
+      originY -= ph;
+      dy = e.clientY - originY;
+      dragCard.style.transform = `translateY(${dy}px) scale(1.02)`;
+    }
+  });
+
+  function onUp(e){
+    if (pressTimer){ cancelPress(); return; }
+    clearPressVisual();
+    if (!dragCard) return;
+    if (e.pointerId !== activePointerId) return;
+    endDrag(true);
+  }
+  list.addEventListener('pointerup', onUp);
+  list.addEventListener('pointercancel', onUp);
+
+  // suppress the click that follows a long-press / drag so toggleExerciseSets doesn't fire
+  list.addEventListener('click', e => {
+    if (Date.now() < suppressClickUntil && e.target.closest('.ex-card')){
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }, true);
 }
 
 /* ===================== RANK ===================== */
