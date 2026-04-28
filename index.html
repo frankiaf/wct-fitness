@@ -2885,6 +2885,7 @@ const LS = {
   history: 'wct_history_v1',
   prs: 'wct_prs_v1',
   reminders: 'wct_reminders_v1',
+  rest: 'wct_rest_v1',
   // legacy
   legacyWorkouts: 'wct_workouts_v2'
 };
@@ -5166,31 +5167,94 @@ function scheduleDailyReminder(){
   }, Math.max(1000, ms));
 }
 
-/* ===================== REST TIMER (loud alarm) ===================== */
+/* ===================== REST TIMER (wall-clock; survives backgrounding) ===================== */
+const REST_NOTIF_TAG = 'reps-rest';
+function _restRemaining(){
+  if (!state.rest) return 0;
+  return Math.max(0, Math.ceil((state.rest.endsAt - Date.now()) / 1000));
+}
+function _persistRest(){
+  if (!state.rest){ try { localStorage.removeItem(LS.rest); } catch(_){} return; }
+  try {
+    localStorage.setItem(LS.rest, JSON.stringify({
+      endsAt: state.rest.endsAt,
+      total:  state.rest.total,
+      label:  state.rest.label
+    }));
+  } catch(_){}
+}
+function _scheduleRestNotification(){
+  if (!('serviceWorker' in navigator)) return;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!('TimestampTrigger' in window)) return; // unsupported (iOS Safari, older Chrome)
+  if (!state.rest) return;
+  const endsAt = state.rest.endsAt;
+  const label = state.rest.label;
+  navigator.serviceWorker.getRegistration().then(reg => {
+    if (!reg) return;
+    _cancelRestNotification(reg).then(() => {
+      try {
+        reg.showNotification(label ? `Descanso — ${label}` : 'Descanso acabou', {
+          body: 'Bora pra próxima série 💪',
+          tag: REST_NOTIF_TAG,
+          icon: 'icon.svg', badge: 'icon.svg',
+          vibrate: [300, 120, 300],
+          showTrigger: new TimestampTrigger(endsAt)
+        });
+      } catch(_){}
+    });
+  }).catch(() => {});
+}
+function _cancelRestNotification(reg){
+  const run = r => r ? r.getNotifications({ tag: REST_NOTIF_TAG, includeTriggered: true })
+                          .then(ns => ns.forEach(n => { try { n.close(); } catch(_){} }))
+                          .catch(() => {})
+                     : Promise.resolve();
+  if (reg) return run(reg);
+  if (!('serviceWorker' in navigator)) return Promise.resolve();
+  return navigator.serviceWorker.getRegistration().then(run).catch(() => {});
+}
 function startRest(seconds, label){
   stopRest();
-  const fab = document.getElementById('timerFab');
-  state.rest = { total: seconds, remaining: seconds, label };
-  fab.classList.add('active');
-  document.getElementById('timerStatus').textContent = label ? `${label.slice(0,22)}${label.length>22?'…':''}` : 'Descansando';
+  state.rest = {
+    endsAt: Date.now() + seconds * 1000,
+    total: seconds,
+    label,
+    interval: null
+  };
+  document.getElementById('timerFab').classList.add('active');
+  document.getElementById('timerStatus').textContent = label
+    ? `${label.slice(0,22)}${label.length>22?'…':''}` : 'Descansando';
   renderRest();
   state.rest.interval = setInterval(() => {
-    state.rest.remaining -= 1;
-    if (state.rest.remaining <= 0) finishRest();
+    if (!state.rest) return;
+    if (_restRemaining() <= 0) finishRest();
     else renderRest();
-  }, 1000);
+  }, 500);
+  _persistRest();
+  // Request permission on first rest so the background notification can fire.
+  if (typeof _ensureNotifPermission === 'function'
+      && 'Notification' in window
+      && Notification.permission === 'default'){
+    _ensureNotifPermission().then(ok => { if (ok) _scheduleRestNotification(); });
+  } else {
+    _scheduleRestNotification();
+  }
 }
 function renderRest(){
   if (!state.rest) return;
-  const pct = Math.max(0, state.rest.remaining / state.rest.total * 100);
+  const remaining = _restRemaining();
+  const pct = Math.max(0, Math.min(100, remaining / state.rest.total * 100));
   document.getElementById('timerRing').style.setProperty('--tpct', pct);
-  document.getElementById('timerVal').textContent = fmtTime(state.rest.remaining);
+  document.getElementById('timerVal').textContent = fmtTime(remaining);
 }
 function stopRest(){
   if (!state.rest) return;
   clearInterval(state.rest.interval);
   state.rest = null;
   document.getElementById('timerFab').classList.remove('active');
+  _persistRest();
+  _cancelRestNotification();
 }
 function finishRest(){
   const label = state.rest && state.rest.label;
@@ -5199,11 +5263,60 @@ function finishRest(){
   stopRest();
   toast('Descanso acabou. Bora! 💪');
 }
+async function _resumeRestFromStorage(){
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(LS.rest) || 'null'); } catch(_){}
+  if (!saved || !saved.endsAt) return;
+  const remaining = Math.ceil((saved.endsAt - Date.now()) / 1000);
+  if (remaining <= 0){
+    // Timer ended while the app was closed/backgrounded.
+    try { localStorage.removeItem(LS.rest); } catch(_){}
+    // If the OS already fired the scheduled notification, don't double-alert.
+    let alreadyAlerted = false;
+    if ('serviceWorker' in navigator){
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg){
+          const ns = await reg.getNotifications({ tag: REST_NOTIF_TAG, includeTriggered: true });
+          if (ns.length){
+            alreadyAlerted = true;
+            ns.forEach(n => { try { n.close(); } catch(_){} });
+          }
+        }
+      } catch(_){}
+    }
+    if (!alreadyAlerted){
+      playAlarm();
+      notifyTimerDone(saved.label, false);
+    }
+    toast('Descanso acabou. Bora! 💪');
+    return;
+  }
+  state.rest = { endsAt: saved.endsAt, total: saved.total, label: saved.label, interval: null };
+  document.getElementById('timerFab').classList.add('active');
+  document.getElementById('timerStatus').textContent = saved.label
+    ? `${saved.label.slice(0,22)}${saved.label.length>22?'…':''}` : 'Descansando';
+  renderRest();
+  state.rest.interval = setInterval(() => {
+    if (!state.rest) return;
+    if (_restRemaining() <= 0) finishRest();
+    else renderRest();
+  }, 500);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !state.rest) return;
+  // Re-render immediately on return so the user sees an accurate value,
+  // and fire the alarm if the timer expired while we were backgrounded.
+  if (_restRemaining() <= 0) finishRest();
+  else renderRest();
+});
 document.getElementById('timerAdd').onclick = () => {
   if (!state.rest) return;
-  state.rest.remaining += 15;
-  state.rest.total = Math.max(state.rest.total, state.rest.remaining);
+  state.rest.endsAt += 15 * 1000;
+  state.rest.total = Math.max(state.rest.total, Math.ceil((state.rest.endsAt - Date.now())/1000));
   renderRest();
+  _persistRest();
+  _scheduleRestNotification(); // reschedule with new endsAt
 };
 document.getElementById('timerStop').onclick = () => stopRest();
 
@@ -5951,6 +6064,7 @@ document.getElementById('profEditDelete').onclick = async () => {
     console.error('init error', e);
   }
   renderHome();
+  _resumeRestFromStorage();
 
   // Restaura sessão Supabase, depois aplica decay sobre o estado já mesclado.
   // (Antes a decay rodava com estado local cru e era sobrescrita pelo sbLoad.)
