@@ -5567,37 +5567,28 @@ function playTick(){
 }
 function playAlarm(){
   const a = ctx(); if (!a) return;
-  if (navigator.vibrate) navigator.vibrate([120, 80, 120, 80, 220]);
-  const freqs = [880, 1100, 880, 1100, 880];
-  const beepDur = 0.18, gap = 0.09;
-  const t0 = a.currentTime;
-  freqs.forEach((f, idx) => {
+  if (navigator.vibrate) navigator.vibrate([60, 90, 60]);
+  // Soft 3-note ascending chime (C5, E5, G5) with sine + gentle envelope.
+  const notes = [523.25, 659.25, 783.99];
+  const noteDur = 0.55, stagger = 0.13, peak = 0.22;
+  const t0 = a.currentTime + 0.02;
+  notes.forEach((f, idx) => {
+    const t = t0 + idx * stagger;
     const osc = a.createOscillator();
+    const partial = a.createOscillator();
     const gain = a.createGain();
-    const comp = a.createDynamicsCompressor();
-    osc.connect(gain); gain.connect(comp); comp.connect(a.destination);
-    osc.type = 'square'; osc.frequency.value = f;
-    const t = t0 + idx * (beepDur + gap);
-    gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.9, t + 0.01);
-    gain.gain.setValueAtTime(0.9, t + beepDur - 0.02);
-    gain.gain.linearRampToValueAtTime(0.0001, t + beepDur);
-    osc.start(t);
-    osc.stop(t + beepDur + 0.02);
-  });
-  const tEnd = t0 + freqs.length * (beepDur + gap) + 0.05;
-  [660, 990].forEach(f => {
-    const osc = a.createOscillator();
-    const gain = a.createGain();
-    const comp = a.createDynamicsCompressor();
-    osc.connect(gain); gain.connect(comp); comp.connect(a.destination);
-    osc.type = 'sawtooth'; osc.frequency.value = f;
-    gain.gain.setValueAtTime(0, tEnd);
-    gain.gain.linearRampToValueAtTime(0.55, tEnd + 0.02);
-    gain.gain.setValueAtTime(0.55, tEnd + 0.45);
-    gain.gain.linearRampToValueAtTime(0.0001, tEnd + 0.7);
-    osc.start(tEnd);
-    osc.stop(tEnd + 0.75);
+    osc.connect(gain); partial.connect(gain); gain.connect(a.destination);
+    osc.type = 'sine'; osc.frequency.value = f;
+    partial.type = 'sine'; partial.frequency.value = f * 2; // soft overtone for warmth
+    const partialGain = a.createGain();
+    partial.disconnect(); partial.connect(partialGain); partialGain.connect(gain);
+    partialGain.gain.value = 0.18;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(peak, t + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + noteDur);
+    osc.start(t); partial.start(t);
+    osc.stop(t + noteDur + 0.05);
+    partial.stop(t + noteDur + 0.05);
   });
 }
 document.addEventListener('touchstart', () => { ctx(); }, { once: true, passive: true });
