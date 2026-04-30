@@ -6431,36 +6431,35 @@ document.getElementById('profEditDelete').onclick = async () => {
   }
 
   let _depth = 0;
-  let _suppress = false;
+  let _pendingPops = 0;
 
   history.replaceState({ rep: 'reps-root' }, '');
 
   function syncDepth(){
-    if (_suppress) return;
+    if (_pendingPops > 0) return;
     const target = getOpenItems().length;
     if (target === _depth) return;
-    _suppress = true;
     if (target > _depth){
       const toPush = target - _depth;
       for (let i = 0; i < toPush; i++) history.pushState({ rep: 'reps-stack' }, '');
     } else {
-      history.go(-(_depth - target));
+      const delta = _depth - target;
+      _pendingPops += delta;
+      history.go(-delta);
     }
     _depth = target;
-    setTimeout(() => { _suppress = false; }, 0);
   }
 
   new MutationObserver(syncDepth)
     .observe(document.body, { subtree: true, attributeFilter: ['class'] });
 
   window.addEventListener('popstate', () => {
-    if (_suppress){ return; }
+    if (_pendingPops > 0){ _pendingPops--; return; }
     const items = getOpenItems();
     if (items.length === 0){
       history.replaceState({ rep: 'reps-root' }, '');
       return;
     }
-    _suppress = true;
     const top = items[items.length - 1];
     if (top.type === 'modal'){
       top.el.classList.remove('show');
@@ -6468,7 +6467,6 @@ document.getElementById('profEditDelete').onclick = async () => {
       stopRest(); stopCountdown(); renderHome(); showView('homeView');
     }
     _depth = Math.max(0, _depth - 1);
-    setTimeout(() => { _suppress = false; }, 0);
   });
 })();
 
