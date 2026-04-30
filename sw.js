@@ -1,4 +1,4 @@
-const VERSION = 'reps-v2';
+const VERSION = 'reps-v3';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {

@@ -6660,31 +6660,63 @@ class BottomSheet {
       this._snapToNearest();
     };
 
-    this.handleArea.addEventListener('touchstart', e => {
-      onDown(e.touches[0].clientY);
-    }, { passive: true });
-    this.handleArea.addEventListener('touchmove', e => {
-      if (this.dragging){
-        onMove(e.touches[0].clientY);
-        e.preventDefault();
-      }
-    }, { passive: false });
-    window.addEventListener('touchend', onUp);
-    window.addEventListener('touchcancel', onUp);
-
-    this.handleArea.addEventListener('mousedown', e => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      onDown(e.clientY);
-      const moveH = ev => onMove(ev.clientY);
-      const upH = () => {
-        window.removeEventListener('mousemove', moveH);
-        window.removeEventListener('mouseup', upH);
+    // Pointer Events unify touch + mouse and avoid synthetic-mouse double-fire
+    // on mobile (which previously caused freeze in the installed PWA).
+    if (window.PointerEvent){
+      let activeId = null;
+      this.handleArea.addEventListener('pointerdown', e => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        if (activeId !== null) return;
+        activeId = e.pointerId;
+        try { this.handleArea.setPointerCapture(activeId); } catch(_){}
+        onDown(e.clientY);
+      });
+      this.handleArea.addEventListener('pointermove', e => {
+        if (e.pointerId !== activeId || !this.dragging) return;
+        onMove(e.clientY);
+        if (e.cancelable) e.preventDefault();
+      });
+      const release = e => {
+        if (e.pointerId !== activeId) return;
+        try { this.handleArea.releasePointerCapture(activeId); } catch(_){}
+        activeId = null;
         onUp();
       };
-      window.addEventListener('mousemove', moveH);
-      window.addEventListener('mouseup', upH);
-    });
+      this.handleArea.addEventListener('pointerup', release);
+      this.handleArea.addEventListener('pointercancel', release);
+    } else {
+      // Legacy fallback (touch + mouse, with synthetic-mouse guard)
+      let lastTouchT = 0;
+      this.handleArea.addEventListener('touchstart', e => {
+        lastTouchT = Date.now();
+        onDown(e.touches[0].clientY);
+      }, { passive: true });
+      this.handleArea.addEventListener('touchmove', e => {
+        lastTouchT = Date.now();
+        if (this.dragging){
+          onMove(e.touches[0].clientY);
+          if (e.cancelable) e.preventDefault();
+        }
+      }, { passive: false });
+      const tEnd = () => { lastTouchT = Date.now(); onUp(); };
+      window.addEventListener('touchend', tEnd);
+      window.addEventListener('touchcancel', tEnd);
+
+      this.handleArea.addEventListener('mousedown', e => {
+        if (e.button !== 0) return;
+        if (Date.now() - lastTouchT < 600) return; // ignore synthetic
+        e.preventDefault();
+        onDown(e.clientY);
+        const moveH = ev => onMove(ev.clientY);
+        const upH = () => {
+          window.removeEventListener('mousemove', moveH);
+          window.removeEventListener('mouseup', upH);
+          onUp();
+        };
+        window.addEventListener('mousemove', moveH);
+        window.addEventListener('mouseup', upH);
+      });
+    }
 
     this.handleArea.addEventListener('click', () => {
       if (this.snap === 'collapsed') this.snapTo('half');
