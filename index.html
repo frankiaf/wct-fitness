@@ -1503,7 +1503,7 @@ body.modal-open {
   overflow: visible;
   will-change: transform;
   transform: translate3d(0, 100%, 0);
-  transition: transform .42s cubic-bezier(.22, 1.1, .36, 1);
+  transition: transform .36s cubic-bezier(.32, .72, 0, 1);
   pointer-events: auto;
 }
 .modal.sheet.dragging { transition: none; }
@@ -6573,10 +6573,15 @@ class BottomSheet {
   }
 
   _currentTy(){
-    const t = this.modal.style.transform || '';
-    const m = /translate3d\([^,]+,\s*([-0-9.]+)px/.exec(t)
-           || /translateY\(([-0-9.]+)px\)/.exec(t);
-    return m ? parseFloat(m[1]) : 0;
+    // Read computed transform so we get the live animated value, not the target.
+    const cs = getComputedStyle(this.modal).transform;
+    if (!cs || cs === 'none') return 0;
+    const m = cs.match(/matrix3d\(([^)]+)\)/) || cs.match(/matrix\(([^)]+)\)/);
+    if (!m) return 0;
+    const parts = m[1].split(',').map(s => parseFloat(s.trim()));
+    if (parts.length === 16) return parts[13]; // matrix3d m42
+    if (parts.length === 6)  return parts[5];  // matrix f
+    return 0;
   }
 
   snapTo(name){
@@ -6620,10 +6625,14 @@ class BottomSheet {
 
   _bindDrag(){
     const onDown = (clientY) => {
-      this.dragging = true;
+      // Capture current visible position FIRST (before disabling transition),
+      // then pin it as inline transform so a mid-flight animation doesn't jump.
+      const livePx = this._currentTy();
       this.modal.classList.add('dragging');
+      this.modal.style.transform = `translate3d(0, ${livePx}px, 0)`;
+      this.dragging = true;
       this.startY = clientY;
-      this.startTy = this._currentTy();
+      this.startTy = livePx;
       this.lastY = clientY;
       this.lastT = performance.now();
       this.velocity = 0;
@@ -6685,10 +6694,14 @@ class BottomSheet {
   _snapToNearest(){
     const pos = this._snapPositions();
     const ty = this._currentTy();
-    const projected = ty + this.velocity * 140;
+    const projected = ty + this.velocity * 200;
 
-    // Dismiss on strong drag below collapsed
-    if (ty > pos.collapsed + 40 || (this.snap === 'collapsed' && this.velocity > 0.7)){
+    // Dismiss conditions:
+    //  - released past the collapsed snap (any amount)
+    //  - or projected past collapsed by more than 20px
+    //  - or fast downward flick from any snap
+    const fastDownFlick = this.velocity > 0.9;
+    if (ty > pos.collapsed + 4 || projected > pos.collapsed + 20 || fastDownFlick){
       if (this.onDismiss) try { this.onDismiss(); } catch(_){}
       this.close();
       return;
@@ -6710,24 +6723,24 @@ class BottomSheet {
   _bindOverlay(){
     this.bg.addEventListener('click', e => {
       if (e.target !== this.bg) return;
-      if (this.snap === 'collapsed'){
-        if (this.onDismiss) try { this.onDismiss(); } catch(_){}
-        this.close();
-      } else {
-        this.snapTo('collapsed');
-      }
+      if (this.onDismiss) try { this.onDismiss(); } catch(_){}
+      this.close();
     });
   }
 
   _observeShow(){
+    // Only react when the `.show` class itself toggles. Other class changes
+    // on the bg (e.g. `.has-overlay`) must NOT re-trigger an open animation.
+    let lastShown = this.bg.classList.contains('show');
     new MutationObserver(() => {
-      if (this._suppressObserve) return;
       const isShown = this.bg.classList.contains('show');
+      const showChanged = isShown !== lastShown;
+      lastShown = isShown;
+      if (!showChanged) return;
+      if (this._suppressObserve) return;
       if (isShown){
         // External code added .show — animate in to half
-        this._suppressObserve = true;
         this._setTranslate(this._getVH(), false);
-        this._suppressObserve = false;
         requestAnimationFrame(() => this.snapTo('half'));
       } else {
         // External code removed .show — reset for next open
