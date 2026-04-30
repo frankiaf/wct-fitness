@@ -4826,7 +4826,7 @@ function addShopItem(){
 }
 document.getElementById('shopAddBtn').onclick = addShopItem;
 document.getElementById('shopClose').onclick = closeShop;
-document.getElementById('shopModalBg').addEventListener('click', e => { if (e.target === e.currentTarget) closeShop(); });
+// Click-outside handled by BottomSheet (overlay tap closes).
 
 /* ===================== BODY MEASUREMENTS ===================== */
 
@@ -5384,11 +5384,11 @@ function _showNotification(title, body, tag){
 function notifyTimerDone(label, isCountdown){
   _vibrate([300, 120, 300]);
   if (document.visibilityState === 'hidden'){
-    _showNotification(
-      isCountdown ? 'Série concluída' : 'Descanso acabou',
-      isCountdown ? `${label || 'Exercício'} — bora pra próxima` : 'Bora pra próxima série 💪',
-      'reps-timer'
-    );
+    const title = isCountdown ? 'REPS · Série concluída' : 'REPS · Descanso concluído';
+    const body  = isCountdown
+      ? (label ? `${label} concluído. Avance para a próxima série.` : 'Avance para a próxima série.')
+      : (label ? `Pronto para a próxima série de ${label}.` : 'Pronto para a próxima série.');
+    _showNotification(title, body, 'reps-timer');
   }
 }
 
@@ -5411,10 +5411,10 @@ function fireDailyReminderIfNeeded(){
   if (state.streakDate === today) return; // already trained today
   if (Notification.permission !== 'granted') return;
   _showNotification(
-    'Hora de treinar 💪',
+    'REPS · Hora do treino',
     state.streak >= 2
-      ? `Não perca seu streak de ${state.streak} dias!`
-      : 'Mantenha a constância — qualquer treino conta.',
+      ? `Mantenha sua sequência de ${state.streak} dias.`
+      : 'Mantenha a constância. Qualquer treino conta.',
     'reps-daily'
   );
 }
@@ -5459,8 +5459,8 @@ function _scheduleRestNotification(){
     if (!reg) return;
     _cancelRestNotification(reg).then(() => {
       try {
-        reg.showNotification(label ? `Descanso — ${label}` : 'Descanso acabou', {
-          body: 'Bora pra próxima série 💪',
+        reg.showNotification('REPS · Descanso concluído', {
+          body: label ? `Pronto para a próxima série de ${label}.` : 'Pronto para a próxima série.',
           tag: REST_NOTIF_TAG,
           icon: 'icon.svg', badge: 'icon.svg',
           vibrate: [300, 120, 300],
@@ -5526,7 +5526,7 @@ function finishRest(){
   playAlarm();
   notifyTimerDone(label, false);
   stopRest();
-  toast('Descanso acabou. Bora! 💪');
+  toast('Descanso concluído');
 }
 async function _resumeRestFromStorage(){
   let saved = null;
@@ -5554,7 +5554,7 @@ async function _resumeRestFromStorage(){
       playAlarm();
       notifyTimerDone(saved.label, false);
     }
-    toast('Descanso acabou. Bora! 💪');
+    toast('Descanso concluído');
     return;
   }
   state.rest = { endsAt: saved.endsAt, total: saved.total, label: saved.label, interval: null };
@@ -6788,7 +6788,7 @@ class BottomSheet {
 /* Initialize bottom sheets and rewire close/dismiss */
 window.addEventListener('DOMContentLoaded', () => {
   const sheets = {};
-  const ids = ['accountModalBg', 'measurementsModalBg', 'wkModalBg', 'exModalBg'];
+  const ids = ['accountModalBg', 'measurementsModalBg', 'wkModalBg', 'exModalBg', 'shopModalBg'];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (el) sheets[id] = new BottomSheet(el);
@@ -6803,6 +6803,9 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   if (sheets.wkModalBg){
     window.closeWorkoutEditor = () => sheets.wkModalBg.close();
+  }
+  if (sheets.shopModalBg){
+    window.closeShop = () => sheets.shopModalBg.close();
   }
   if (sheets.exModalBg){
     window.closeExerciseEditor = () => sheets.exModalBg.close();
