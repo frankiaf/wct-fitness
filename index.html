@@ -1477,6 +1477,63 @@ body.modal-open {
 .confirm-icon { font-size: 36px; margin-bottom: 12px; line-height: 1; }
 .confirm-modal .btn-primary.danger { background: var(--danger); box-shadow: 0 4px 14px color-mix(in oklab, var(--danger) 35%, transparent); }
 
+/* ============ BOTTOM SHEET ============ */
+.modal-bg.sheet-mode {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: none;
+  transition: background .25s ease, backdrop-filter .25s ease;
+  pointer-events: none;
+}
+.modal-bg.sheet-mode.show { pointer-events: none; }
+.modal-bg.sheet-mode.has-overlay {
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+.modal.sheet {
+  animation: none !important;
+  height: 92vh;
+  max-height: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  will-change: transform;
+  transform: translate3d(0, 100%, 0);
+  transition: transform .42s cubic-bezier(.22, 1.1, .36, 1);
+  pointer-events: auto;
+}
+.modal.sheet.dragging { transition: none; }
+.sheet-handle-area {
+  flex: 0 0 auto;
+  padding: 12px 22px 4px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sheet-handle-area:active { cursor: grabbing; }
+.sheet-handle-area .modal-handle {
+  margin: 0 auto 6px;
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  transition: background .15s;
+}
+.sheet-handle-area:hover .modal-handle,
+.modal.sheet.dragging .modal-handle { background: var(--text-3); }
+.sheet-body {
+  flex: 1 1 auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  padding: 6px 22px 28px;
+  -webkit-overflow-scrolling: touch;
+}
+.modal.sheet.snap-full .sheet-body { overflow-y: auto; }
+
 /* Form */
 .field { margin-bottom: 16px; }
 .field-label {
@@ -3384,9 +3441,7 @@ async function accountLogout(){
   closeAccountModal();
   await doLogout();
 }
-document.getElementById('accountModalBg').addEventListener('click', (e) => {
-  if (e.target.id === 'accountModalBg') closeAccountModal();
-});
+// Click-outside handled by BottomSheet (overlay tap collapses).
 
 /* ===================== UTIL ===================== */
 function fmtTime(sec){
@@ -5184,8 +5239,8 @@ function saveSingleMeasure(){
   toast('Medida salva');
 }
 
-/* Click-outside to close all measurement modals */
-['measurementsModalBg','newMeasureModalBg','measureDetailModalBg','singleMeasureModalBg'].forEach(id => {
+/* Click-outside to close measurement modals (measurementsModalBg handled by BottomSheet) */
+['newMeasureModalBg','measureDetailModalBg','singleMeasureModalBg'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', e => { if (e.target.id === id) el.classList.remove('show'); });
 });
@@ -5853,9 +5908,7 @@ function openWorkoutEditor(id, dayOfWeek){
 }
 function closeWorkoutEditor(){ document.getElementById('wkModalBg').classList.remove('show'); }
 document.getElementById('wkCancel').onclick = closeWorkoutEditor;
-document.getElementById('wkModalBg').addEventListener('click', (e) => {
-  if (e.target.id === 'wkModalBg') closeWorkoutEditor();
-});
+// Click-outside handled by BottomSheet (overlay tap collapses).
 document.getElementById('wkSave').onclick = () => {
   const name = document.getElementById('wkName').value.trim().slice(0, 40);
   if (!name){ toast('Dê um nome ao treino', 'error'); return; }
@@ -5976,9 +6029,7 @@ function cancelExerciseEditor(){
   closeExerciseEditor();
 }
 document.getElementById('exCancel').onclick = cancelExerciseEditor;
-document.getElementById('exModalBg').addEventListener('click', (e) => {
-  if (e.target.id === 'exModalBg') cancelExerciseEditor();
-});
+// Click-outside handled by BottomSheet (overlay tap collapses; drag-down dismiss runs cleanup).
 
 function renderImgPreviews(){
   const el = document.getElementById('exImgPreviews');
@@ -6451,6 +6502,275 @@ document.getElementById('profEditDelete').onclick = async () => {
     return new Promise(res => { _resolve = res; });
   };
 })();
+
+/* ===================== BOTTOM SHEET ===================== */
+class BottomSheet {
+  constructor(bg, opts = {}){
+    this.bg = bg;
+    this.modal = bg.querySelector('.modal');
+    this.opts = opts;
+    this.onDismiss = opts.onDismiss || null;
+
+    // Restructure DOM: handle area + scrollable body
+    const handle = this.modal.querySelector('.modal-handle');
+    const body = document.createElement('div');
+    body.className = 'sheet-body';
+    while (this.modal.firstChild) body.appendChild(this.modal.firstChild);
+    const handleArea = document.createElement('div');
+    handleArea.className = 'sheet-handle-area';
+    if (handle) handleArea.appendChild(handle);
+    else {
+      const h = document.createElement('div');
+      h.className = 'modal-handle';
+      handleArea.appendChild(h);
+    }
+    this.modal.appendChild(handleArea);
+    this.modal.appendChild(body);
+    this.modal.classList.add('sheet');
+    this.bg.classList.add('sheet-mode');
+
+    this.handleArea = handleArea;
+    this.body = body;
+    this.snap = 'half';
+    this.dragging = false;
+    this.startY = 0;
+    this.startTy = 0;
+    this.lastY = 0;
+    this.lastT = 0;
+    this.velocity = 0;
+    this._suppressObserve = false;
+    this._closing = false;
+
+    this._setTranslate(this._getVH(), false);
+    this._bindDrag();
+    this._bindOverlay();
+    this._observeShow();
+  }
+
+  _getVH(){ return window.innerHeight; }
+  _getH(){ return this.modal.offsetHeight || this._getVH() * 0.92; }
+
+  _snapPositions(){
+    const H = this._getH();
+    const VH = this._getVH();
+    return {
+      full: 0,
+      half: Math.max(0, H - VH * 0.55),
+      collapsed: Math.max(0, H - 56),
+    };
+  }
+
+  _setTranslate(px, animate = true){
+    const m = this.modal;
+    if (!animate){
+      m.classList.add('dragging');
+      m.style.transform = `translate3d(0, ${px}px, 0)`;
+      void m.offsetHeight;
+      m.classList.remove('dragging');
+    } else {
+      m.style.transform = `translate3d(0, ${px}px, 0)`;
+    }
+  }
+
+  _currentTy(){
+    const t = this.modal.style.transform || '';
+    const m = /translate3d\([^,]+,\s*([-0-9.]+)px/.exec(t)
+           || /translateY\(([-0-9.]+)px\)/.exec(t);
+    return m ? parseFloat(m[1]) : 0;
+  }
+
+  snapTo(name){
+    const pos = this._snapPositions();
+    const px = pos[name] != null ? pos[name] : pos.half;
+    this.snap = name;
+    this.modal.classList.toggle('snap-full', name === 'full');
+    this.bg.classList.toggle('has-overlay', name !== 'collapsed');
+    this._setTranslate(px, true);
+  }
+
+  open(initial = 'half'){
+    this._closing = false;
+    this._suppressObserve = true;
+    this._setTranslate(this._getVH(), false);
+    this.bg.classList.add('show');
+    this._suppressObserve = false;
+    requestAnimationFrame(() => this.snapTo(initial));
+  }
+
+  close(){
+    if (this._closing) return;
+    this._closing = true;
+    this._setTranslate(this._getVH(), true);
+    this.bg.classList.remove('has-overlay');
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      this.modal.removeEventListener('transitionend', finish);
+      this._suppressObserve = true;
+      this.bg.classList.remove('show');
+      this._suppressObserve = false;
+      this._closing = false;
+      this.snap = 'half';
+      this.modal.classList.remove('snap-full');
+    };
+    this.modal.addEventListener('transitionend', finish);
+    setTimeout(finish, 500);
+  }
+
+  _bindDrag(){
+    const onDown = (clientY) => {
+      this.dragging = true;
+      this.modal.classList.add('dragging');
+      this.startY = clientY;
+      this.startTy = this._currentTy();
+      this.lastY = clientY;
+      this.lastT = performance.now();
+      this.velocity = 0;
+    };
+    const onMove = (clientY) => {
+      if (!this.dragging) return;
+      const dy = clientY - this.startY;
+      const pos = this._snapPositions();
+      const min = pos.full - 20; // slight overshoot
+      const max = pos.collapsed + 100;
+      let ty = this.startTy + dy;
+      if (ty < min) ty = min + (ty - min) * 0.3; // rubber band
+      if (ty > max) ty = max + (ty - max) * 0.3;
+      this.modal.style.transform = `translate3d(0, ${ty}px, 0)`;
+      const now = performance.now();
+      const dt = now - this.lastT;
+      if (dt > 0) this.velocity = (clientY - this.lastY) / dt;
+      this.lastY = clientY;
+      this.lastT = now;
+    };
+    const onUp = () => {
+      if (!this.dragging) return;
+      this.dragging = false;
+      this.modal.classList.remove('dragging');
+      this._snapToNearest();
+    };
+
+    this.handleArea.addEventListener('touchstart', e => {
+      onDown(e.touches[0].clientY);
+    }, { passive: true });
+    this.handleArea.addEventListener('touchmove', e => {
+      if (this.dragging){
+        onMove(e.touches[0].clientY);
+        e.preventDefault();
+      }
+    }, { passive: false });
+    window.addEventListener('touchend', onUp);
+    window.addEventListener('touchcancel', onUp);
+
+    this.handleArea.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      onDown(e.clientY);
+      const moveH = ev => onMove(ev.clientY);
+      const upH = () => {
+        window.removeEventListener('mousemove', moveH);
+        window.removeEventListener('mouseup', upH);
+        onUp();
+      };
+      window.addEventListener('mousemove', moveH);
+      window.addEventListener('mouseup', upH);
+    });
+
+    this.handleArea.addEventListener('click', () => {
+      if (this.snap === 'collapsed') this.snapTo('half');
+    });
+  }
+
+  _snapToNearest(){
+    const pos = this._snapPositions();
+    const ty = this._currentTy();
+    const projected = ty + this.velocity * 140;
+
+    // Dismiss on strong drag below collapsed
+    if (ty > pos.collapsed + 40 || (this.snap === 'collapsed' && this.velocity > 0.7)){
+      if (this.onDismiss) try { this.onDismiss(); } catch(_){}
+      this.close();
+      return;
+    }
+
+    const candidates = [
+      { name: 'full', y: pos.full },
+      { name: 'half', y: pos.half },
+      { name: 'collapsed', y: pos.collapsed },
+    ];
+    let best = candidates[0], bestD = Infinity;
+    for (const c of candidates){
+      const d = Math.abs(c.y - projected);
+      if (d < bestD){ bestD = d; best = c; }
+    }
+    this.snapTo(best.name);
+  }
+
+  _bindOverlay(){
+    this.bg.addEventListener('click', e => {
+      if (e.target !== this.bg) return;
+      if (this.snap === 'collapsed'){
+        if (this.onDismiss) try { this.onDismiss(); } catch(_){}
+        this.close();
+      } else {
+        this.snapTo('collapsed');
+      }
+    });
+  }
+
+  _observeShow(){
+    new MutationObserver(() => {
+      if (this._suppressObserve) return;
+      const isShown = this.bg.classList.contains('show');
+      if (isShown){
+        // External code added .show — animate in to half
+        this._suppressObserve = true;
+        this._setTranslate(this._getVH(), false);
+        this._suppressObserve = false;
+        requestAnimationFrame(() => this.snapTo('half'));
+      } else {
+        // External code removed .show — reset for next open
+        this._setTranslate(this._getVH(), false);
+        this.bg.classList.remove('has-overlay');
+        this.modal.classList.remove('snap-full');
+        this.snap = 'half';
+      }
+    }).observe(this.bg, { attributes: true, attributeFilter: ['class'] });
+  }
+}
+
+/* Initialize bottom sheets and rewire close/dismiss */
+window.addEventListener('DOMContentLoaded', () => {
+  const sheets = {};
+  const ids = ['accountModalBg', 'measurementsModalBg', 'wkModalBg', 'exModalBg'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) sheets[id] = new BottomSheet(el);
+  });
+  window._sheets = sheets;
+
+  if (sheets.accountModalBg){
+    window.closeAccountModal = () => sheets.accountModalBg.close();
+  }
+  if (sheets.measurementsModalBg){
+    window.closeMeasurementsModal = () => sheets.measurementsModalBg.close();
+  }
+  if (sheets.wkModalBg){
+    window.closeWorkoutEditor = () => sheets.wkModalBg.close();
+  }
+  if (sheets.exModalBg){
+    window.closeExerciseEditor = () => sheets.exModalBg.close();
+    // User-dismissed exercise editor (overlay drag-down) should drop unsaved media
+    sheets.exModalBg.onDismiss = () => {
+      const edit = (typeof state !== 'undefined') ? state.editingExercise : null;
+      if (edit && edit.addedMediaIds && edit.addedMediaIds.length){
+        try { dropMediaByIds(edit.addedMediaIds); } catch(_){}
+        edit.addedMediaIds = [];
+      }
+    };
+  }
+});
 </script>
 </body>
 </html>
